@@ -1,0 +1,12 @@
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+exclude = [
+  ".git"
+]
+line-length = 88
+select = ["E4", "E7", "E9", "F", "S", "I", "C90"]
+target-version = "py310"
+tab-size = 2
