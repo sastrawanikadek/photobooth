@@ -23,6 +23,7 @@
         "editor.codeActionsOnSave": {
           "source.organizeImports": true
         },
+        "python.analysis.extraPaths": ["./server"],
         "[python]": {
           "editor.indentSize": 4,
           "editor.codeActionsOnSave": {
@@ -39,6 +40,9 @@
     "type=volume,target=/var/lib/docker",
     "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
   ],
+  "containerEnv": {
+    "PYTHON_PATH": "/workspaces/app/server"
+  },
   "postAttachCommand": "/bin/bash .devcontainer/post-attach",
   "runArgs": ["-e", "GIT_EDITOR=code --wait", "--privileged"],
   "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/app/",
