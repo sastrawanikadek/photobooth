@@ -1,22 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Type
+from typing import Awaitable, Callable, Type
 
 from .model import Event
 
-Listener = Callable[[Event], None]
+Listener = Callable[[Event], None | Awaitable[None]]
 
 
 class EventBusInterface(ABC):
-    """
-    Interface for event bus implementations.
-
-    Attributes
-    ----------
-    listeners : dict[str, list[Callable[[Event], None]]]
-        A dictionary of event listeners, keyed by event identifier.
-    """
-
-    listeners: dict[Type[Event], list[Listener]]
+    """Interface for event bus implementations."""
 
     @abstractmethod
     def add_listener(self, event: Type[Event], listener: Listener) -> None:

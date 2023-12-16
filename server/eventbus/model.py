@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -12,7 +11,7 @@ class Event:
     ----------
     event_type : str
         The type of event.
-    event_data : dict | list
+    event_data : object
         The data associated with the event.
     timestamp : datetime
         The timestamp of the event.
@@ -30,7 +29,7 @@ class Event:
     """
 
     event_type: str
-    event_data: Optional[dict | list] = None
+    event_data: object = None
     timestamp: datetime = field(default_factory=datetime.now, init=False)
 
     def to_dict(self) -> dict:

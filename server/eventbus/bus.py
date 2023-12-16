@@ -1,8 +1,12 @@
+import asyncio
+import logging
 from collections import defaultdict
 from typing import Type
 
-from .interface import EventBusInterface, Listener
+from .interfaces import EventBusInterface, Listener
 from .model import Event
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class EventBus(EventBusInterface):
@@ -14,7 +18,7 @@ class EventBus(EventBusInterface):
 
     Attributes
     ----------
-    listeners : dict[str, list[Callable[[Event], None]]]
+    _listeners : dict[Type[Event], list[Callable[[Event], None]]]
         A dictionary of event listeners, keyed by event identifier.
 
     Examples
@@ -29,9 +33,11 @@ class EventBus(EventBusInterface):
     Event(event_type='test', event_data=None, timestamp=datetime.datetime(2021, 5, 31, 21, 4, 21, 114361))
     """
 
+    _listeners: dict[Type[Event], list[Listener]]
+
     def __init__(self) -> None:
         """Initialize the event bus."""
-        self.listeners = defaultdict(list)
+        self._listeners = defaultdict(list)
 
     def add_listener(self, event: Type[Event], listener: Listener) -> None:
         """
@@ -53,10 +59,10 @@ class EventBus(EventBusInterface):
         ...
         >>> bus.add_listener(Event, listener)
         """
-        if event not in self.listeners:
-            self.listeners[event] = []
+        if event not in self._listeners:
+            self._listeners[event] = []
 
-        self.listeners[event].append(listener)
+        self._listeners[event].append(listener)
 
     def remove_listener(self, event: Type[Event], listener: Listener) -> None:
         """
@@ -85,12 +91,15 @@ class EventBus(EventBusInterface):
         >>> bus.add_listener(Event, listener)
         >>> bus.remove_listener(Event, listener)
         """
-        if event in self.listeners:
+        if event in self._listeners:
             try:
-                self.listeners[event].remove(listener)
-            except ValueError:
-                # TODO: Log this
-                pass
+                self._listeners[event].remove(listener)
+            except ValueError as error:
+                _LOGGER.warning(
+                    "Tried to remove listener for event %s, but it was not registered.",
+                    event,
+                )
+                raise error
 
     def dispatch(self, event: Event) -> None:
         """
@@ -112,6 +121,9 @@ class EventBus(EventBusInterface):
         >>> bus.dispatch(Event("test"))
         Event(event_type='test', event_data=None, timestamp=datetime.datetime(2021, 5, 31, 21, 4, 21, 114361))
         """
-        if event.__class__ in self.listeners:
-            for listener in self.listeners[event.__class__]:
-                listener(event)
+        if event.__class__ in self._listeners:
+            for listener in self._listeners[event.__class__]:
+                if asyncio.iscoroutinefunction(listener):
+                    asyncio.create_task(listener(event))
+                else:
+                    listener(event)
