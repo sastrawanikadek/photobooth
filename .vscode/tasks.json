@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start App",
+      "command": "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM python3 server/main.py",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "group": "build"
+    }
+  ]
+}

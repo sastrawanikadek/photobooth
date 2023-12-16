@@ -44,7 +44,7 @@
     "PYTHON_PATH": "/workspaces/app/server"
   },
   "postAttachCommand": "/bin/bash .devcontainer/post-attach",
-  "runArgs": ["-e", "GIT_EDITOR=code --wait", "--privileged"],
+  "runArgs": ["-e", "GIT_EDITOR=code --wait", "--privileged", "--network=host"],
   "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/app/",
   "workspaceFolder": "/workspaces/app/"
 }

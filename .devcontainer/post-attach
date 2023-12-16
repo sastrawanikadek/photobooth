@@ -2,7 +2,11 @@
 
 sudo chown -R vscode:vscode /var/run/docker.sock
 git config --global --add safe.directory $PWD
+
+python3 -m scripts.generate_requirements
+
 pip3 install -r requirements-dev.txt
 pip3 install -r requirements.txt
+pip3 install -r requirements-components.txt
 
 pre-commit install
