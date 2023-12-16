@@ -7,7 +7,7 @@ from .model import ComponentManifest
 
 
 class ComponentInterface(ABC):
-    """Interface for component implementations."""
+    """Interface for all components."""
 
 
 class ComponentManagerInterface(ABC):
@@ -46,9 +46,9 @@ class ComponentManagerInterface(ABC):
         """
 
     @abstractmethod
-    def load(self) -> None:
+    def load_preinstalled(self) -> None:
         """
-        Load all the components in the path and inject the necessary dependencies into
+        Load all the preinstalled components in the path and inject the necessary dependencies into
         the components.
         """
 

@@ -6,7 +6,7 @@ from typing import Optional
 from injector import DependencyInjectorInterface
 from utils.helpers.module import get_module_class, import_module_by_path
 
-from .interface import ComponentInterface, ComponentManagerInterface
+from .interfaces import ComponentInterface, ComponentManagerInterface
 from .model import ComponentManifest
 
 
@@ -81,9 +81,10 @@ class ComponentManager(ComponentManagerInterface):
         component: ComponentInterface = self.injector.inject_constructor(component_cls)
         return component
 
-    def load(self) -> None:
+    def load_preinstalled(self) -> None:
         """
-        Load the components.
+        Load all the preinstalled components in the path and inject the necessary dependencies into
+        the components.
 
         Parameters
         ----------
@@ -94,7 +95,7 @@ class ComponentManager(ComponentManagerInterface):
             component_path = self.path / component_name
             manifest = self._load_manifest(component_path)
 
-            if manifest is None:
+            if manifest is None or not manifest.preinstalled:
                 continue
 
             component = self._load_component(component_path, manifest)

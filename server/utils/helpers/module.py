@@ -23,7 +23,7 @@ def import_module_by_path(path: Path) -> Optional[ModuleType]:
     """
 
     try:
-        module_name = str(path).replace("/", ".")
+        module_name = ".".join(str(path).split("/")[1:])
         return importlib.import_module(module_name)
     except ImportError:
         return None
@@ -54,7 +54,10 @@ def get_module_class(
         for cls in inspect.getmembers(module, inspect.isclass)
         if (
             (name is None or cls[0] == name)
-            and (cls_type is None or issubclass(cls[1], cls_type))
+            and (
+                cls_type is None
+                or (cls[1] is not cls_type and issubclass(cls[1], cls_type))
+            )
         )
         or cls[1].__module__ == module.__name__
     ]
@@ -63,3 +66,23 @@ def get_module_class(
         return None
 
     return cast(_CT, classes[0])
+
+
+def get_calling_module() -> Optional[ModuleType]:
+    """
+    Get the module of the calling function.
+
+    Returns
+    -------
+    Optional[ModuleType]
+        The module of the calling function if it exists, None otherwise.
+    """
+    stack = inspect.stack()
+
+    if stack is None or len(stack) < 3:
+        return None
+
+    frame = stack[2].frame
+    module = inspect.getmodule(frame)
+
+    return module

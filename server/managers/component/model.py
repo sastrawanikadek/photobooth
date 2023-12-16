@@ -1,7 +1,7 @@
 from typing import Optional
 
-from pydantic import BaseModel
-from utils.validators import SlugStr
+from pydantic import BaseModel, Field
+from utils.pydantic_fields import SlugStr
 
 
 class ComponentManifest(BaseModel):
@@ -21,7 +21,9 @@ class ComponentManifest(BaseModel):
         example: "example-component"
     """
 
-    display_name: str
+    display_name: str = Field(..., alias="displayName")
     description: str
-    name: Optional[str] = None
     slug: SlugStr
+    preinstalled: bool = False
+    name: Optional[str] = None
+    requirements: Optional[dict[str, str]] = None
