@@ -1,8 +1,11 @@
 import inspect
-from typing import cast
+from contextlib import contextmanager
+from typing import Callable, Iterator, cast
 
-from .interface import (
+from .dependency_container import DependencyContainer
+from .interfaces import (
     _CT,
+    _RT,
     DependencyContainerInterface,
     DependencyInjectorInterface,
 )
@@ -26,12 +29,37 @@ class DependencyInjector(DependencyInjectorInterface):
 
         Examples
         --------
-        >>> from injector import Injector, AppDependencyContainer
+        >>> from injector import Injector, DependencyContainer
         >>> injector = Injector()
-        >>> container = AppDependencyContainer()
+        >>> container = DependencyContainer()
         >>> injector.add_container(container)
         """
         self.containers.append(container)
+
+    @contextmanager
+    def add_temporary_container(self) -> Iterator[DependencyContainerInterface]:
+        """
+        Add a temporary dependency container to use for dependency injection.
+
+        Returns
+        -------
+        ContextManager[DependencyContainerInterface]
+            The temporary dependency container.
+
+        Examples
+        --------
+        >>> from injector import Injector, DependencyContainer
+        >>> injector = Injector()
+        >>> with injector.add_temporary_container() as container:
+        ...     pass
+        """
+        container = DependencyContainer()
+        self.add_container(container)
+
+        try:
+            yield container
+        finally:
+            self.containers.remove(container)
 
     def inject_constructor(self, cls: _CT) -> _CT:
         """
@@ -54,9 +82,9 @@ class DependencyInjector(DependencyInjectorInterface):
 
         Examples
         --------
-        >>> from injector import Injector, AppDependencyContainer
+        >>> from injector import Injector, DependencyContainer
         >>> injector = Injector()
-        >>> container = AppDependencyContainer()
+        >>> container = DependencyContainer()
         >>> class Interface: pass
         >>> class Implementation(Interface): pass
         >>> container.bind(Interface, Implementation)
@@ -89,3 +117,44 @@ class DependencyInjector(DependencyInjectorInterface):
 
         instance = cls(*args)
         return cast(_CT, instance)
+
+    def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+        """
+        Call a function with dependency injection.
+
+        Parameters
+        ----------
+        func : callable
+            The function to call.
+
+        Examples
+        --------
+        >>> from injector import Injector, DependencyContainer
+        >>> injector = Injector()
+        >>> container = DependencyContainer()
+        >>> class Interface: pass
+        >>> class Implementation(Interface): pass
+        >>> container.bind(Interface, Implementation)
+        >>> injector.add_container(container)
+        >>> def test(interface: Interface):
+        ...     print(interface)
+        ...
+        >>> injector.call_with_injection(test)
+        <class '__main__.Implementation'>
+        """
+        signature = inspect.signature(func)
+        args = []
+
+        for parameter in signature.parameters.values():
+            if parameter.annotation == parameter.empty:
+                continue
+
+            for container in self.containers:
+                try:
+                    dependency = container.get(parameter.annotation)
+                    args.append(dependency)
+                    break
+                except TypeError:
+                    continue
+
+        return func(*args)

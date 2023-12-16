@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar
+from typing import Callable, ContextManager, TypeVar
 
-_CT = TypeVar("_CT", bound=type)
+_CT = TypeVar("_CT")
+_RT = TypeVar("_RT")
 
 
 class DependencyInjectorInterface(ABC):
@@ -30,6 +31,17 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
+    def add_temporary_container(self) -> ContextManager["DependencyContainerInterface"]:
+        """
+        Add a temporary dependency container to use for dependency injection.
+
+        Returns
+        -------
+        ContextManager[DependencyContainerInterface]
+            The temporary dependency container.
+        """
+
+    @abstractmethod
     def inject_constructor(self, cls: _CT) -> _CT:
         """
         Inject dependencies into a class.
@@ -38,6 +50,22 @@ class DependencyInjectorInterface(ABC):
         ----------
         cls : type
             The class to inject dependencies into.
+
+        Returns
+        -------
+        type
+            The class with injected dependencies.
+        """
+
+    @abstractmethod
+    def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+        """
+        Call a function with dependency injection.
+
+        Parameters
+        ----------
+        func : callable
+            The function to call.
         """
 
 
@@ -46,14 +74,7 @@ class DependencyContainerInterface(ABC):
     Interface for dependency container implementations.
 
     A dependency container is a container for bindings between interfaces and implementations.
-
-    Attributes
-    ----------
-    bindings : dict[type, type]
-        The bindings between interfaces and implementations.
     """
-
-    bindings: dict[type, type]
 
     @abstractmethod
     def get(self, interface: type) -> type:

@@ -2,7 +2,7 @@
 
 from .dependency_container import DependencyContainer
 from .dependency_injection import DependencyInjector
-from .interface import DependencyContainerInterface, DependencyInjectorInterface
+from .interfaces import DependencyContainerInterface, DependencyInjectorInterface
 
 __all__ = [
     "DependencyContainerInterface",
