@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Optional
 
 from injector import DependencyInjectorInterface
 
@@ -11,26 +12,7 @@ class ComponentInterface(ABC):
 
 
 class ComponentManagerInterface(ABC):
-    """
-    Interface for component manager implementations.
-
-    Attributes
-    ----------
-    components : dict[str, ComponentInterface]
-        The components managed by the manager.
-    components_data : dict[str, dict[str, object]]
-        The data of the components managed by the manager.
-    manifests : dict[str, ComponentManifest]
-        The manifests of the components managed by the manager.
-    path : Path
-        The path to the directory containing the components.
-    """
-
-    components: dict[str, ComponentInterface]
-    components_data: dict[str, dict[str, object]]
-    manifests: dict[str, ComponentManifest]
-    path: Path
-    injector: DependencyInjectorInterface
+    """Interface for component manager implementations."""
 
     @abstractmethod
     def __init__(self, path: Path, injector: DependencyInjectorInterface) -> None:
@@ -53,7 +35,7 @@ class ComponentManagerInterface(ABC):
         """
 
     @abstractmethod
-    def get(self, slug: str) -> ComponentInterface:
+    def get(self, slug: str) -> Optional[ComponentInterface]:
         """
         Get a component by its slug.
 
@@ -64,12 +46,12 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        ComponentInterface
-            The component with the given slug.
+        Optional[ComponentInterface]
+            The component with the given slug or None if not installed.
         """
 
     @abstractmethod
-    def get_data(self, slug: str) -> dict[str, object]:
+    def get_data(self, slug: str) -> Optional[dict[str, object]]:
         """
         Get the data of a component by its slug.
 
@@ -80,12 +62,12 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        dict[str, object]
-            The data of the component with the given slug.
+        Optional[dict[str, object]]
+            The data of the component with the given slug or None if component is not installed.
         """
 
     @abstractmethod
-    def get_manifest(self, slug: str) -> ComponentManifest:
+    def get_manifest(self, slug: str) -> Optional[ComponentManifest]:
         """
         Get a component manifest by its slug.
 
@@ -96,8 +78,8 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        ComponentManifest
-            The component manifest with the given slug.
+        Optional[ComponentManifest]
+            The component manifest with the given slug or None if component is not installed.
         """
 
     @abstractmethod
