@@ -156,7 +156,7 @@ class WebSocket(WebSocketInterface):
         if command in self._handlers:
             calling_module = get_calling_module()
 
-            _LOGGER.warning(
+            _LOGGER.error(
                 "Unable to register handler for command %s from module %s",
                 command,
                 calling_module.__name__ if calling_module is not None else "unknown",

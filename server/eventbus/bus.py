@@ -94,12 +94,11 @@ class EventBus(EventBusInterface):
         if event in self._listeners:
             try:
                 self._listeners[event].remove(listener)
-            except ValueError as error:
+            except ValueError:
                 _LOGGER.warning(
                     "Tried to remove listener for event %s, but it was not registered.",
                     event,
                 )
-                raise error
 
     def dispatch(self, event: Event) -> None:
         """
