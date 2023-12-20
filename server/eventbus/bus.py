@@ -120,9 +120,24 @@ class EventBus(EventBusInterface):
         >>> bus.dispatch(Event("test"))
         Event(event_type='test', event_data=None, timestamp=datetime.datetime(2021, 5, 31, 21, 4, 21, 114361))
         """
+        asyncio.create_task(self._async_dispatch(event))
+
+    async def _async_dispatch(self, event: Event) -> None:
+        """
+        Dispatch an event to all registered listeners in an async context.
+
+        Parameters
+        ----------
+        event : Event
+            The event to dispatch.
+        """
         if event.__class__ in self._listeners:
+            coroutine_listeners = []
+
             for listener in self._listeners[event.__class__]:
                 if asyncio.iscoroutinefunction(listener):
-                    asyncio.create_task(listener(event))
+                    coroutine_listeners.append(listener(event))
                 else:
                     listener(event)
+
+            await asyncio.gather(*coroutine_listeners)
