@@ -14,26 +14,7 @@
         "eamodio.gitlens",
         "redhat.vscode-yaml",
         "GitHub.copilot"
-      ],
-      "settings": {
-        "editor.formatOnSave": true,
-        "editor.indentSize": 2,
-        "editor.detectIndentation": false,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.codeActionsOnSave": {
-          "source.organizeImports": true
-        },
-        "python.analysis.extraPaths": ["./server"],
-        "[python]": {
-          "editor.indentSize": 4,
-          "editor.codeActionsOnSave": {
-            "source.organizeImports": false,
-            "source.organizeImports.ruff": true,
-            "source.fixAll.ruff": true
-          },
-          "editor.defaultFormatter": "ms-python.black-formatter"
-        }
-      }
+      ]
     }
   },
   "mounts": [
