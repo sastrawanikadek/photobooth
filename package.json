@@ -7,5 +7,10 @@
   "repository": "https://github.com/parisudha/photobooth.git",
   "author": "Parisudha Technology",
   "license": "MIT",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@commitlint/cli": "^18.4.3",
+    "@commitlint/config-conventional": "^18.4.3",
+    "conventional-changelog-atom": "^4.0.0"
+  }
 }
