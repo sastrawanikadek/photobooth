@@ -1,7 +1,11 @@
+# Bytecode / cache
 .mypy_cache
 .ruff_cache
 __pycache__
 
+# Environment variables
 .env
 
+# Dependency directories
 node_modules
+.venv

@@ -1,4 +1,4 @@
-#! /usr/bin/bash
+#! /usr/bin/env bash
 
 COMMIT_MSG=$(cat $1)
 CURRENT_BRANCH=$(git branch --show-current)
