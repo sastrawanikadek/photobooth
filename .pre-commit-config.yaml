@@ -43,3 +43,8 @@ repos:
         language: node
         entry: npx commitlint --edit
         stages: [commit-msg]
+      - id: issueref
+        name: Append issue ref
+        entry: scripts/append_issue_ref.sh
+        language: script
+        stages: [commit-msg]

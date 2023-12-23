@@ -25,6 +25,5 @@ module.exports = {
         "websocket",
       ],
     ],
-    "references-empty": [2, "never"],
   },
 };
