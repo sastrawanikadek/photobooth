@@ -3,6 +3,8 @@ import logging
 from collections import defaultdict
 from typing import Type
 
+from utils.helpers.function import safe_invokes
+
 from .interfaces import EventBusInterface, Listener
 from .model import Event
 
@@ -132,12 +134,4 @@ class EventBus(EventBusInterface):
             The event to dispatch.
         """
         if event.__class__ in self._listeners:
-            coroutine_listeners = []
-
-            for listener in self._listeners[event.__class__]:
-                if asyncio.iscoroutinefunction(listener):
-                    coroutine_listeners.append(listener(event))
-                else:
-                    listener(event)
-
-            await asyncio.gather(*coroutine_listeners)
+            await safe_invokes(self._listeners[event.__class__], event)
