@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, ContextManager, TypeVar
 
 _CT = TypeVar("_CT")
-_RT = TypeVar("_RT")
+_RT = TypeVar("_RT", bound=object)
 
 
 class DependencyInjectorInterface(ABC):
@@ -58,7 +58,7 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
-    def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+    async def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
         """
         Call a function with dependency injection.
 
@@ -66,6 +66,11 @@ class DependencyInjectorInterface(ABC):
         ----------
         func : callable
             The function to call.
+
+        Returns
+        -------
+        _RT
+            The result of the function.
         """
 
 

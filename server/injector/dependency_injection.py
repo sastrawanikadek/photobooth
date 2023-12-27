@@ -2,6 +2,8 @@ import inspect
 from contextlib import contextmanager
 from typing import Callable, Iterator, cast
 
+from utils.helpers.function import safe_invoke
+
 from .dependency_container import DependencyContainer
 from .interfaces import (
     _CT,
@@ -93,9 +95,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ...     def __init__(self, interface: Interface):
         ...         self.interface = interface
         ...
-        >>> test = injector.inject(Test)
-        >>> test.interface
-        <class '__main__.Implementation'>
+        >>> injector.inject_constructor(Test)
+        <__main__.Test object at 0x7f5d6f9b6f10>
         """
         if not inspect.isclass(cls):
             raise TypeError(f"{cls} is not a class")
@@ -118,7 +119,7 @@ class DependencyInjector(DependencyInjectorInterface):
         instance = cls(*args)
         return cast(_CT, instance)
 
-    def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+    async def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
         """
         Call a function with dependency injection.
 
@@ -127,20 +128,25 @@ class DependencyInjector(DependencyInjectorInterface):
         func : callable
             The function to call.
 
+        Returns
+        -------
+        _RT
+            The result of the function.
+
         Examples
         --------
         >>> from injector import Injector, DependencyContainer
-        >>> injector = Injector()
-        >>> container = DependencyContainer()
         >>> class Interface: pass
         >>> class Implementation(Interface): pass
-        >>> container.bind(Interface, Implementation)
-        >>> injector.add_container(container)
         >>> def test(interface: Interface):
-        ...     print(interface)
-        ...
-        >>> injector.call_with_injection(test)
-        <class '__main__.Implementation'>
+        ...     return interface
+        >>> async def main() -> None:
+        ...     injector = Injector()
+        ...     container = DependencyContainer()
+        ...     container.bind(Interface, Implementation)
+        ...     injector.add_container(container)
+        ...     await injector.call_with_injection(test)
+        <__main__.Implementation object at 0x7f5d6f9b6f10>
         """
         signature = inspect.signature(func)
         args = []
@@ -157,4 +163,4 @@ class DependencyInjector(DependencyInjectorInterface):
                 except TypeError:
                     continue
 
-        return func(*args)
+        return cast(_RT, await safe_invoke(func, *args))
