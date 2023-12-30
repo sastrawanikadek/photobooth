@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -117,12 +116,22 @@ class ComponentManager(ComponentManagerInterface):
         injector : DependencyInjectorInterface
             The dependency injector to use for dependency injection.
         """
-        for component_name in os.listdir(self._path):
-            component_path = self._path / component_name
+        component_paths = sorted(
+            [
+                component_path
+                for component_path in self._path.iterdir()
+                if component_path.is_dir()
+            ],
+            key=lambda x: x.name,
+        )
+
+        for component_path in component_paths:
             manifest = self._load_manifest(component_path)
 
             if manifest is None or not manifest.preinstalled:
                 continue
+
+            _LOGGER.debug("Loading component %s", manifest.display_name)
 
             component = self._load_component(component_path, manifest)
 
@@ -132,6 +141,8 @@ class ComponentManager(ComponentManagerInterface):
             self._components[manifest.slug] = component
             self._components_data[manifest.slug] = {}
             self._manifests[manifest.slug] = manifest
+
+            _LOGGER.info("Loaded component %s", manifest.display_name)
 
     def get(self, slug: str) -> Optional[ComponentInterface]:
         """
