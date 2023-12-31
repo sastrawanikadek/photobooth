@@ -11,7 +11,8 @@ from utils.helpers.module import get_calling_module
 from websockets import WebSocketServerProtocol, serve
 
 from .constants import HOST, PORT
-from .interfaces import WebSocketInterface
+from .exceptions import WebSocketHandlerError
+from .interfaces import WebSocketInterface, WebSocketMessagePayload
 from .models import (
     WebSocketErrorResponse,
     WebSocketIncomingMessage,
@@ -37,7 +38,7 @@ class WebSocket(WebSocketInterface):
 
     _eventbus: EventBusInterface
     _injector: DependencyInjectorInterface
-    _handlers: dict[str, Callable[..., None]]
+    _handlers: dict[str, Callable[..., WebSocketMessagePayload]]
 
     def __init__(
         self, eventbus: EventBusInterface, injector: DependencyInjectorInterface
@@ -76,7 +77,6 @@ class WebSocket(WebSocketInterface):
 
             try:
                 incoming_message = WebSocketIncomingMessage(**json.loads(message))
-                await self._run_handler(websocket, incoming_message)
             except ValueError:
                 await websocket.send(
                     WebSocketErrorResponse(
@@ -84,6 +84,9 @@ class WebSocket(WebSocketInterface):
                         message="Invalid message format.",
                     ).to_json()
                 )
+                continue
+
+            await self._run_handler(websocket, incoming_message)
 
     async def _run_handler(
         self,
@@ -111,13 +114,14 @@ class WebSocket(WebSocketInterface):
             return
 
         handler = self._handlers[incoming_message.command]
-        model = get_first_match_signature(handler, BaseModel)
 
-        if model is not None and incoming_message.payload is not None:
-            with self._injector.add_temporary_container() as container:
+        with self._injector.add_temporary_container() as container:
+            container.bind(WebSocketServerProtocol, websocket)
+
+            model = get_first_match_signature(handler, BaseModel)
+            if model is not None and incoming_message.payload is not None:
                 try:
                     container.bind(model, model(**incoming_message.payload))
-                    response = self._injector.call_with_injection(handler)
                 except ValueError:
                     await websocket.send(
                         WebSocketErrorResponse(
@@ -126,8 +130,20 @@ class WebSocket(WebSocketInterface):
                         ).to_json()
                     )
                     return
-        else:
-            response = handler()
+
+            try:
+                response = await self._injector.call_with_injection(handler)
+            except WebSocketHandlerError as error:
+                _LOGGER.warning(
+                    f'Error in handler for command "{incoming_message.command}": {error.message}',
+                )
+                await websocket.send(
+                    WebSocketErrorResponse(
+                        command=incoming_message.command,
+                        message=error.message,
+                    ).to_json()
+                )
+                return
 
         await websocket.send(
             WebSocketSuccessResponse(
