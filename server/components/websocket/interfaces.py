@@ -3,7 +3,7 @@ from typing import Callable, Optional
 
 from managers.component import ComponentInterface
 
-WebSocketMessagePayload = Optional[dict[str, object] | list[dict[str, object]]]
+WebSocketMessagePayload = Optional[str | dict[str, object] | list[dict[str, object]]]
 
 
 class WebSocketInterface(ComponentInterface):

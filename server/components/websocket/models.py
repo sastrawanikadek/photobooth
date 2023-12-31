@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, PrivateAttr
 
 from .interfaces import WebSocketMessagePayload
 
@@ -22,7 +22,7 @@ class WebSocketIncomingMessage(BaseModel):
     """
 
     command: str
-    payload: WebSocketMessagePayload = Field(None)
+    payload: WebSocketMessagePayload = None
     _timestamp: datetime = PrivateAttr(default_factory=datetime.now)
 
 
@@ -43,11 +43,11 @@ class WebSocketSuccessResponse(BaseModel):
     """
 
     command: str
-    payload: WebSocketMessagePayload = Field(None)
+    payload: WebSocketMessagePayload = None
     _type: Literal["success"] = "success"
     _timestamp: datetime = PrivateAttr(default_factory=datetime.now)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """Dictionary representation of the response."""
         return {
             "command": self.command,
@@ -82,7 +82,7 @@ class WebSocketErrorResponse(BaseModel):
     _type: Literal["error"] = "error"
     _timestamp: datetime = PrivateAttr(default_factory=datetime.now)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         """Dictionary representation of the response."""
         return {
             "command": self.command,
