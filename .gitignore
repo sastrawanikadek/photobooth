@@ -9,3 +9,6 @@ __pycache__
 # Dependency directories
 node_modules
 .venv
+
+# Local development
+database.db
