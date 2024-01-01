@@ -10,6 +10,23 @@ from server.utils.pydantic_fields import SlugStr
 class Setting(SQLModel, table=True):  # type: ignore
     """
     Model and schema for a setting.
+
+    Attributes
+    ----------
+    id : int
+        The ID of the setting.
+    slug : SlugStr
+        Source of the setting.
+    key : str
+        The key of the setting.
+    type : str
+        The data type of the setting (e.g. integer, boolean, string, float).
+    value : str
+        The value of the setting.
+    created_at : datetime
+        The date and time the setting was created.
+    updated_at : datetime
+        The date and time the setting was last updated.
     """
 
     __tablename__ = "settings"
