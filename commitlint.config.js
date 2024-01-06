@@ -23,6 +23,7 @@ module.exports = {
         "injector",
         "utils",
         "websocket",
+        "database",
       ],
     ],
   },

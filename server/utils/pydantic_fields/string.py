@@ -1,7 +1,8 @@
 from typing import Annotated
 
 from pydantic import AfterValidator
-from utils.validators import is_slug
+
+from server.utils.validators import is_slug
 
 
 def _check_slug(string: str) -> str:
