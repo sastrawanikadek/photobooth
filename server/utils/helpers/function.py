@@ -6,8 +6,8 @@ _RT = TypeVar("_RT", bound=object)
 
 async def safe_invoke(
     func: Callable[..., _RT | Awaitable[_RT]],
-    *args: tuple[object],
-    **kwargs: dict[str, object],
+    *args: object,
+    **kwargs: object,
 ) -> _RT:
     """
     Safely invoke a function and return the result.
@@ -18,9 +18,9 @@ async def safe_invoke(
     ----------
     func : callable
         The function to invoke.
-    args : tuple
+    *args : object
         The positional arguments to pass to the function.
-    kwargs : dict
+    **kwargs : object
         The keyword arguments to pass to the function.
 
     Returns
@@ -36,8 +36,8 @@ async def safe_invoke(
 
 async def safe_invokes(
     funcs: list[Callable[..., _RT | Awaitable[_RT]]],
-    *args: tuple[object],
-    **kwargs: dict[str, object],
+    *args: object,
+    **kwargs: object,
 ) -> list[_RT]:
     """
     Safely invoke a list of functions and return the results.
@@ -46,9 +46,9 @@ async def safe_invokes(
     ----------
     funcs : list[callable]
         The functions to invoke.
-    args : tuple
+    *args : object
         The positional arguments to pass to the functions.
-    kwargs : dict
+    **kwargs : object
         The keyword arguments to pass to the functions.
 
     Returns

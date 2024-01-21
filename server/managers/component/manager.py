@@ -1,10 +1,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
-from injector import DependencyInjectorInterface
-from utils.helpers.module import get_module_class, import_module_by_path
+from server.injector import DependencyInjectorInterface
+from server.utils.helpers.module import get_module_class, import_module_by_path
 
 from .interfaces import ComponentInterface, ComponentManagerInterface
 from .model import ComponentManifest
@@ -103,8 +103,9 @@ class ComponentManager(ComponentManagerInterface):
         if component_cls is None:
             return None
 
-        component: ComponentInterface = self._injector.inject_constructor(component_cls)
-        return component
+        return cast(
+            ComponentInterface, self._injector.inject_constructor(component_cls)
+        )
 
     def load_preinstalled(self) -> None:
         """
@@ -191,6 +192,17 @@ class ComponentManager(ComponentManagerInterface):
             The component manifest with the given slug or None if component is not installed.
         """
         return self._manifests.get(slug)
+
+    def get_all_manifests(self) -> list[ComponentManifest]:
+        """
+        Get all the component manifests.
+
+        Returns
+        -------
+        list[ComponentManifest]
+            All the component manifests.
+        """
+        return list(self._manifests.values())
 
     def remove(self, slug: str) -> None:
         """

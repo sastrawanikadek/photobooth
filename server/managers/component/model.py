@@ -1,7 +1,8 @@
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from utils.pydantic_fields import SlugStr
+
+from server.utils.pydantic_fields import SlugStr
 
 
 class ComponentManifest(BaseModel):

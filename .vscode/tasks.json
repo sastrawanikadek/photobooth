@@ -17,7 +17,7 @@
       "command": [
         "[[ -d .venv ]] && ",
         "source .venv/bin/activate && ",
-        "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM python3 server/main.py"
+        "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main"
       ],
       "type": "shell",
       "presentation": {
@@ -29,7 +29,7 @@
     },
     {
       "label": "Start App",
-      "command": "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM python3 server/main.py",
+      "command": "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main",
       "type": "shell",
       "presentation": {
         "reveal": "always",

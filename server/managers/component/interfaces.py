@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from injector import DependencyInjectorInterface
+from server.injector import DependencyInjectorInterface
 
 from .model import ComponentManifest
 
@@ -80,6 +80,17 @@ class ComponentManagerInterface(ABC):
         -------
         Optional[ComponentManifest]
             The component manifest with the given slug or None if component is not installed.
+        """
+
+    @abstractmethod
+    def get_all_manifests(self) -> list[ComponentManifest]:
+        """
+        Get all the component manifests.
+
+        Returns
+        -------
+        list[ComponentManifest]
+            All the component manifests.
         """
 
     @abstractmethod

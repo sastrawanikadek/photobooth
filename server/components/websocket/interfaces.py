@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Callable, Optional
 
-from managers.component import ComponentInterface
+from server.managers.component import ComponentInterface
 
 WebSocketMessagePayload = Optional[str | dict[str, object] | list[dict[str, object]]]
 

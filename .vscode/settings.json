@@ -6,7 +6,6 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
-  "python.analysis.extraPaths": ["./server"],
   "python.analysis.autoImportCompletions": true,
   "[python]": {
     "editor.indentSize": 4,

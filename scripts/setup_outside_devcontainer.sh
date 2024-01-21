@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 
 if [[ ! -d .venv ]]; then
+  eval "$(pyenv init -)"
   python3 -m venv .venv
 fi
 

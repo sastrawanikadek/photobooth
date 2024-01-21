@@ -23,7 +23,7 @@ def import_module_by_path(path: Path) -> Optional[ModuleType]:
     """
 
     try:
-        module_name = ".".join(str(path).split("/")[1:])
+        module_name = ".".join(str(path).split("/"))
         return importlib.import_module(module_name)
     except ImportError:
         return None
