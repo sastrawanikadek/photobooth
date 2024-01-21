@@ -98,14 +98,33 @@ class DependencyContainerInterface(ABC):
         """
 
     @abstractmethod
-    def bind(self, interface: type, implementation: type) -> None:
+    def bind(self, interface: type, implementation: type | Callable[[], type]) -> None:
         """
         Bind an interface to an implementation.
+
+        Implementations are instantiated every time they are injected.
 
         Parameters
         ----------
         interface : type
             The interface to bind.
-        implementation : type
+        implementation : type | Callable[[], type]
+            The implementation to bind to the interface.
+        """
+
+    @abstractmethod
+    def singleton(
+        self, interface: type, implementation: type | Callable[[], type]
+    ) -> None:
+        """
+        Bind an interface to a singleton implementation.
+
+        Implementations are only instantiated once and then reused.
+
+        Parameters
+        ----------
+        interface : type
+            The interface to bind.
+        implementation : type | Callable[[], type]
             The implementation to bind to the interface.
         """
