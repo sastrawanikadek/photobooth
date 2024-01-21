@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
+from typing import Awaitable, Callable, cast
 
 from server.utils.helpers.function import safe_invokes
 
@@ -40,7 +41,9 @@ class EventBus(EventBusInterface):
         """Initialize the event bus."""
         self._listeners = defaultdict(list)
 
-    def add_listener(self, event: type[TEvent], listener: Listener) -> None:
+    def add_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Register a listener for an event.
 
@@ -48,7 +51,7 @@ class EventBus(EventBusInterface):
         ----------
         event : type[Event]
             The event to listen for.
-        listener : Listener
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to register.
 
         Examples
@@ -60,9 +63,11 @@ class EventBus(EventBusInterface):
         ...
         >>> bus.add_listener(Event, listener)
         """
-        self._listeners.setdefault(event, []).append(listener)
+        self._listeners.setdefault(event, []).append(cast(Listener, listener))
 
-    def remove_listener(self, event: type[TEvent], listener: Listener) -> None:
+    def remove_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Unregister a listener for an event.
 
@@ -71,7 +76,7 @@ class EventBus(EventBusInterface):
         event : type[Event]
             The event to stop listening for.
 
-        listener : Listener
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to unregister.
 
         Raises
@@ -91,7 +96,7 @@ class EventBus(EventBusInterface):
         """
         if event in self._listeners:
             try:
-                self._listeners[event].remove(listener)
+                self._listeners[event].remove(cast(Listener, listener))
             except ValueError:
                 _LOGGER.warning(
                     "Tried to remove listener for event %s, but it was not registered.",

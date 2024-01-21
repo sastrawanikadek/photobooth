@@ -4,14 +4,16 @@ from typing import Awaitable, Callable, TypeVar
 from .model import Event
 
 TEvent = TypeVar("TEvent", bound=Event)
-Listener = Callable[[TEvent], None | Awaitable[None]]
+Listener = Callable[[Event], None | Awaitable[None]]
 
 
 class EventBusInterface(ABC):
     """Interface for event bus implementations."""
 
     @abstractmethod
-    def add_listener(self, event: type[TEvent], listener: Listener) -> None:
+    def add_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Register a listener for an event.
 
@@ -19,12 +21,14 @@ class EventBusInterface(ABC):
         ----------
         event : type[Event]
             The event to listen for.
-        listener : Listener
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to register.
         """
 
     @abstractmethod
-    def remove_listener(self, event: type[TEvent], listener: Listener) -> None:
+    def remove_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Unregister a listener for an event.
 
@@ -32,7 +36,7 @@ class EventBusInterface(ABC):
         ----------
         event : type[Event]
             The event to stop listening for.
-        listener : Listener
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to unregister.
         """
 
