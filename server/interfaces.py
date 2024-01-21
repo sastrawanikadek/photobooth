@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Type
 
 from server.eventbus import Event, EventBusInterface, Listener
@@ -20,12 +20,34 @@ class PhotoboothInterface(ABC):
         The dependency injector.
     eventbus : EventBusInterface
         The eventbus.
+    settings_manager : SettingsManagerInterface
+        The settings manager.
     """
 
     component_manager: ComponentManagerInterface
     dependency_container: DependencyContainerInterface
     dependency_injector: DependencyInjectorInterface
     eventbus: EventBusInterface
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """
+        Bootstrap the photobooth.
+
+        Initialize the main components of the photobooth.
+        """
+
+    @abstractmethod
+    def prepare(self) -> None:
+        """
+        Prepare the photobooth.
+
+        Load all the necessary components and settings.
+        """
+
+    @abstractmethod
+    async def startup(self) -> None:
+        """Start the photobooth."""
 
 
 class ServiceProviderInterface:
