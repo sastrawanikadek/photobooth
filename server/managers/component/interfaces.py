@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
-from injector import DependencyInjectorInterface
+from server.injector import DependencyInjectorInterface
 
 from .model import ComponentManifest
 
@@ -35,7 +34,7 @@ class ComponentManagerInterface(ABC):
         """
 
     @abstractmethod
-    def get(self, slug: str) -> Optional[ComponentInterface]:
+    def get(self, slug: str) -> ComponentInterface | None:
         """
         Get a component by its slug.
 
@@ -46,12 +45,12 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        Optional[ComponentInterface]
+        ComponentInterface | None
             The component with the given slug or None if not installed.
         """
 
     @abstractmethod
-    def get_data(self, slug: str) -> Optional[dict[str, object]]:
+    def get_data(self, slug: str) -> dict[str, object] | None:
         """
         Get the data of a component by its slug.
 
@@ -62,12 +61,12 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        Optional[dict[str, object]]
+        dict[str, object] | None
             The data of the component with the given slug or None if component is not installed.
         """
 
     @abstractmethod
-    def get_manifest(self, slug: str) -> Optional[ComponentManifest]:
+    def get_manifest(self, slug: str) -> ComponentManifest | None:
         """
         Get a component manifest by its slug.
 
@@ -78,8 +77,19 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        Optional[ComponentManifest]
+        ComponentManifest | None
             The component manifest with the given slug or None if component is not installed.
+        """
+
+    @abstractmethod
+    def get_all_manifests(self) -> list[ComponentManifest]:
+        """
+        Get all the component manifests.
+
+        Returns
+        -------
+        list[ComponentManifest]
+            All the component manifests.
         """
 
     @abstractmethod

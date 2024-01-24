@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 _RT = TypeVar("_RT")
 _ST = TypeVar("_ST", bound=type)
@@ -7,7 +7,7 @@ _ST = TypeVar("_ST", bound=type)
 
 def get_first_match_signature(
     callable: Callable[..., _RT], signature: _ST
-) -> Optional[_ST]:
+) -> _ST | None:
     """
     Get the first matching subtype of a signature from a callable.
 
@@ -20,7 +20,7 @@ def get_first_match_signature(
 
     Returns
     -------
-    Optional[type]
+    type | None
         The first matching subtype of the signature or None if no match was found.
     """
     parameters = inspect.signature(callable).parameters

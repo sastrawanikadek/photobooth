@@ -1,11 +1,11 @@
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Type
+from typing import Awaitable, Callable, cast
 
-from utils.helpers.function import safe_invokes
+from server.utils.helpers.function import safe_invokes
 
-from .interfaces import EventBusInterface, Listener
+from .interfaces import EventBusInterface, Listener, TEvent
 from .model import Event
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class EventBus(EventBusInterface):
 
     Attributes
     ----------
-    _listeners : dict[Type[Event], list[Callable[[Event], None]]]
+    _listeners : dict[type[Event], list[Listener]
         A dictionary of event listeners, keyed by event identifier.
 
     Examples
@@ -35,13 +35,15 @@ class EventBus(EventBusInterface):
     Event(event_type='test', event_data=None, timestamp=datetime.datetime(2021, 5, 31, 21, 4, 21, 114361))
     """
 
-    _listeners: dict[Type[Event], list[Listener]]
+    _listeners: dict[type[Event], list[Listener]]
 
     def __init__(self) -> None:
         """Initialize the event bus."""
         self._listeners = defaultdict(list)
 
-    def add_listener(self, event: Type[Event], listener: Listener) -> None:
+    def add_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Register a listener for an event.
 
@@ -49,7 +51,7 @@ class EventBus(EventBusInterface):
         ----------
         event : type[Event]
             The event to listen for.
-        listener : Callable[[Event], None]
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to register.
 
         Examples
@@ -61,12 +63,11 @@ class EventBus(EventBusInterface):
         ...
         >>> bus.add_listener(Event, listener)
         """
-        if event not in self._listeners:
-            self._listeners[event] = []
+        self._listeners.setdefault(event, []).append(cast(Listener, listener))
 
-        self._listeners[event].append(listener)
-
-    def remove_listener(self, event: Type[Event], listener: Listener) -> None:
+    def remove_listener(
+        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+    ) -> None:
         """
         Unregister a listener for an event.
 
@@ -75,7 +76,7 @@ class EventBus(EventBusInterface):
         event : type[Event]
             The event to stop listening for.
 
-        listener : Callable[[Event], None]
+        listener : Callable[[Event], None | Awaitable[None]]
             The listener to unregister.
 
         Raises
@@ -95,7 +96,7 @@ class EventBus(EventBusInterface):
         """
         if event in self._listeners:
             try:
-                self._listeners[event].remove(listener)
+                self._listeners[event].remove(cast(Listener, listener))
             except ValueError:
                 _LOGGER.warning(
                     "Tried to remove listener for event %s, but it was not registered.",

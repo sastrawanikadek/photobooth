@@ -1,9 +1,9 @@
 from abc import abstractmethod
-from typing import Callable, Optional
+from typing import Callable
 
-from managers.component import ComponentInterface
+from server.managers.component import ComponentInterface
 
-WebSocketMessagePayload = Optional[str | dict[str, object] | list[dict[str, object]]]
+WebSocketMessagePayload = str | dict[str, object] | list[dict[str, object]] | None
 
 
 class WebSocketInterface(ComponentInterface):

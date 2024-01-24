@@ -82,7 +82,7 @@ class DependencyContainerInterface(ABC):
     """
 
     @abstractmethod
-    def get(self, interface: type) -> type:
+    def get_bind(self, interface: type) -> type | Callable[..., object] | None:
         """
         Get an implementation for an interface.
 
@@ -93,19 +93,58 @@ class DependencyContainerInterface(ABC):
 
         Returns
         -------
-        type
-            The implementation for the interface.
+        type | Callable[..., object] | None
+            The implementation or the factory for the interface or
+            None if there is no binding.
         """
 
     @abstractmethod
-    def bind(self, interface: type, implementation: type) -> None:
+    def get_singleton(self, interface: type) -> object | None:
+        """
+        Get a singleton implementation for an interface.
+
+        Parameters
+        ----------
+        interface : type
+            The interface to get an implementation for.
+
+        Returns
+        -------
+        object | None
+            The singleton instance for the interface or
+            None if there is no singleton.
+        """
+
+    @abstractmethod
+    def bind(
+        self, interface: type, implementation: type | Callable[..., object]
+    ) -> None:
         """
         Bind an interface to an implementation.
+
+        Implementations are instantiated every time they are injected.
 
         Parameters
         ----------
         interface : type
             The interface to bind.
-        implementation : type
-            The implementation to bind to the interface.
+        implementation : type | Callable[..., object]
+            The implementation or factory to bind to the interface.
+        """
+
+    @abstractmethod
+    def singleton(
+        self, interface: type, implementation: object | Callable[[], object]
+    ) -> None:
+        """
+        Bind an interface to a singleton implementation.
+
+        Implementations are only instantiated once and then reused.
+
+        Parameters
+        ----------
+        interface : type
+            The interface to bind.
+        implementation : object | Callable[[], object]
+            The instance or factory to bind to the interface.
         """

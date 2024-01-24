@@ -2,13 +2,14 @@ import json
 import logging
 from typing import Callable
 
-from eventbus import EventBusInterface
-from events import AppReadyEvent
-from injector.interfaces import DependencyInjectorInterface
 from pydantic import BaseModel
-from utils.helpers.inspect import get_first_match_signature
-from utils.helpers.module import get_calling_module
 from websockets import WebSocketServerProtocol, serve
+
+from server.eventbus import EventBusInterface
+from server.events import AppReadyEvent
+from server.injector import DependencyInjectorInterface
+from server.utils.helpers.inspect import get_first_match_signature
+from server.utils.helpers.module import get_calling_module
 
 from .constants import HOST, PORT
 from .exceptions import WebSocketHandlerError
@@ -57,7 +58,6 @@ class WebSocket(WebSocketInterface):
 
         This handler starts the WebSocket server.
         """
-
         server = await serve(self._on_message, HOST, PORT)
         _LOGGER.info("WebSocket server started on %s:%s", HOST, PORT)
 
@@ -103,7 +103,6 @@ class WebSocket(WebSocketInterface):
         incoming_message : WebSocketIncomingMessage
             The incoming message.
         """
-
         if incoming_message.command not in self._handlers:
             await websocket.send(
                 WebSocketErrorResponse(
@@ -168,7 +167,6 @@ class WebSocket(WebSocketInterface):
         ValueError
             If a handler for the command is already registered.
         """
-
         if command in self._handlers:
             calling_module = get_calling_module()
 

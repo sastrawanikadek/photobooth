@@ -2,7 +2,7 @@ import inspect
 from contextlib import contextmanager
 from typing import Callable, Iterator, cast
 
-from utils.helpers.function import safe_invoke
+from server.utils.helpers.function import safe_invoke
 
 from .dependency_container import DependencyContainer
 from .interfaces import (
@@ -16,9 +16,9 @@ from .interfaces import (
 class DependencyInjector(DependencyInjectorInterface):
     """Dependency injection implementation."""
 
-    def __init__(self) -> None:
+    def __init__(self, containers: list[DependencyContainerInterface] = []) -> None:
         """Initialize the dependency injector."""
-        self.containers = []
+        self.containers = containers
 
     def add_container(self, container: DependencyContainerInterface) -> None:
         """
@@ -63,6 +63,69 @@ class DependencyInjector(DependencyInjectorInterface):
         finally:
             self.containers.remove(container)
 
+    def _resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
+        """
+        Resolve the dependencies for a function.
+
+        Parameters
+        ----------
+        func : callable
+            The function to resolve dependencies for.
+
+        Returns
+        -------
+        list[object]
+            The resolved dependencies.
+
+        Raises
+        ------
+        TypeError
+            If a dependency could not be resolved.
+        """
+        signature = inspect.signature(func)
+        args: list[object] = []
+
+        for parameter in signature.parameters.values():
+            resolved = False
+
+            if parameter.annotation == parameter.empty:
+                continue
+
+            for container in self.containers:
+                dependency = container.get_singleton(parameter.annotation)
+
+                if dependency is not None:
+                    args.append(dependency)
+                    resolved = True
+                    break
+
+                implementation = container.get_bind(parameter.annotation)
+
+                if implementation is None:
+                    continue
+
+                try:
+                    if callable(implementation):
+                        dependency_args = self._resolve_dependencies(implementation)
+                    else:
+                        dependency_args = self._resolve_dependencies(
+                            implementation.__init__
+                        )
+                except ValueError:
+                    break
+                else:
+                    dependency = implementation(*dependency_args)
+                    args.append(dependency)
+                    resolved = True
+                    break
+
+            if not resolved:
+                raise ValueError(
+                    f'Could not resolve dependency for "{parameter.annotation}"'
+                )
+
+        return args
+
     def inject_constructor(self, cls: _CT) -> _CT:
         """
         Inject dependencies into a class using the constructor.
@@ -81,6 +144,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ------
         TypeError
             If the class is not a class.
+        ValueError
+            If a dependency could not be resolved.
 
         Examples
         --------
@@ -99,23 +164,9 @@ class DependencyInjector(DependencyInjectorInterface):
         <__main__.Test object at 0x7f5d6f9b6f10>
         """
         if not inspect.isclass(cls):
-            raise TypeError(f"{cls} is not a class")
+            raise TypeError(f'"{cls}" is not a class')
 
-        signature = inspect.signature(cls.__init__)
-        args = []
-
-        for parameter in signature.parameters.values():
-            if parameter.annotation == parameter.empty:
-                continue
-
-            for container in self.containers:
-                try:
-                    dependency = container.get(parameter.annotation)
-                    args.append(dependency)
-                    break
-                except TypeError:
-                    continue
-
+        args = self._resolve_dependencies(cls.__init__)
         instance = cls(*args)
         return cast(_CT, instance)
 
@@ -133,6 +184,11 @@ class DependencyInjector(DependencyInjectorInterface):
         _RT
             The result of the function.
 
+        Raises
+        ------
+        ValueError
+            If a dependency could not be resolved.
+
         Examples
         --------
         >>> from injector import Injector, DependencyContainer
@@ -148,19 +204,5 @@ class DependencyInjector(DependencyInjectorInterface):
         ...     await injector.call_with_injection(test)
         <__main__.Implementation object at 0x7f5d6f9b6f10>
         """
-        signature = inspect.signature(func)
-        args = []
-
-        for parameter in signature.parameters.values():
-            if parameter.annotation == parameter.empty:
-                continue
-
-            for container in self.containers:
-                try:
-                    dependency = container.get(parameter.annotation)
-                    args.append(dependency)
-                    break
-                except TypeError:
-                    continue
-
+        args = self._resolve_dependencies(func)
         return cast(_RT, await safe_invoke(func, *args))

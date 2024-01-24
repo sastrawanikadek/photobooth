@@ -1,20 +1,18 @@
-import asyncio
 import logging
 
 import colorlog
 import uvloop
-from constants import APP_ENV
-from core import Photobooth
-from enums import Environment
-from events import AppReadyEvent
+
+from server.constants import APP_ENV
+from server.core import Photobooth
+from server.enums import Environment
 
 
 async def main() -> None:
     photobooth = Photobooth()
-    photobooth.component_manager.load_preinstalled()
-    photobooth.eventbus.dispatch(AppReadyEvent({"message": "The app is ready."}))
-
-    await asyncio.Future()
+    photobooth.initialize()
+    photobooth.prepare()
+    await photobooth.startup()
 
 
 def setup_logging() -> None:

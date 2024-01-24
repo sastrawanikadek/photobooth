@@ -2,12 +2,12 @@ import importlib
 import inspect
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, TypeVar, cast
+from typing import TypeVar, cast
 
 _CT = TypeVar("_CT", bound=type)
 
 
-def import_module_by_path(path: Path) -> Optional[ModuleType]:
+def import_module_by_path(path: Path) -> ModuleType | None:
     """
     Import a module by path.
 
@@ -18,20 +18,20 @@ def import_module_by_path(path: Path) -> Optional[ModuleType]:
 
     Returns
     -------
-    Optional[ModuleType]
+    ModuleType | None
         The module if it exists, None otherwise.
     """
 
     try:
-        module_name = ".".join(str(path).split("/")[1:])
+        module_name = ".".join(str(path).split("/"))
         return importlib.import_module(module_name)
     except ImportError:
         return None
 
 
 def get_module_class(
-    module: ModuleType, name: Optional[str] = None, cls_type: Optional[_CT] = None
-) -> Optional[_CT]:
+    module: ModuleType, name: str | None = None, cls_type: _CT | None = None
+) -> _CT | None:
     """
     Get a class from a module.
 
@@ -39,7 +39,7 @@ def get_module_class(
     ----------
     module : ModuleType
         The module to get the class from.
-    name : Optional[str]
+    name : str | None
         The name of the class to get.
     cls_type : type
         The type of the class to get.
@@ -68,13 +68,13 @@ def get_module_class(
     return cast(_CT, classes[0])
 
 
-def get_calling_module() -> Optional[ModuleType]:
+def get_calling_module() -> ModuleType | None:
     """
     Get the module of the calling function.
 
     Returns
     -------
-    Optional[ModuleType]
+    ModuleType | None
         The module of the calling function if it exists, None otherwise.
     """
     stack = inspect.stack()
