@@ -92,13 +92,32 @@ class DependencyInjector(DependencyInjectorInterface):
                 continue
 
             for container in self.containers:
-                try:
-                    dependency = container.get(parameter.annotation)
+                dependency = container.get_singleton(parameter.annotation)
+
+                if dependency is not None:
                     args.append(dependency)
                     resolved = True
                     break
-                except TypeError:
+
+                implementation = container.get_bind(parameter.annotation)
+
+                if implementation is None:
                     continue
+
+                try:
+                    if callable(implementation):
+                        dependency_args = self._resolve_dependencies(implementation)
+                    else:
+                        dependency_args = self._resolve_dependencies(
+                            implementation.__init__
+                        )
+                except ValueError:
+                    break
+                else:
+                    dependency = implementation(*dependency_args)
+                    args.append(dependency)
+                    resolved = True
+                    break
 
             if not resolved:
                 raise ValueError(
