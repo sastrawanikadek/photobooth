@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 
 from server.injector import DependencyInjectorInterface
 from server.utils.helpers.module import get_module_class, import_module_by_path
@@ -53,7 +53,7 @@ class ComponentManager(ComponentManagerInterface):
         self._path = path
         self._injector = injector
 
-    def _load_manifest(self, component_path: Path) -> Optional[ComponentManifest]:
+    def _load_manifest(self, component_path: Path) -> ComponentManifest | None:
         """
         Load a component manifest.
 
@@ -64,7 +64,7 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        Optional[ComponentManifest]
+        ComponentManifest | None
             The manifest of the component.
         """
         manifest_path = component_path / "manifest.json"
@@ -77,7 +77,7 @@ class ComponentManager(ComponentManagerInterface):
 
     def _load_component(
         self, component_path: Path, manifest: ComponentManifest
-    ) -> Optional[ComponentInterface]:
+    ) -> ComponentInterface | None:
         """
         Load a component.
 
@@ -90,7 +90,7 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        Optional[ComponentInterface]
+        ComponentInterface | None
             The component.
         """
         module = import_module_by_path(component_path)
@@ -145,7 +145,7 @@ class ComponentManager(ComponentManagerInterface):
 
             _LOGGER.info("Loaded component %s", manifest.display_name)
 
-    def get(self, slug: str) -> Optional[ComponentInterface]:
+    def get(self, slug: str) -> ComponentInterface | None:
         """
         Get a component by its slug.
 
@@ -156,12 +156,12 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        Optional[ComponentInterface]
+        ComponentInterface | None
             The component with the given slug or None if not installed.
         """
         return self._components.get(slug)
 
-    def get_data(self, slug: str) -> Optional[dict[str, object]]:
+    def get_data(self, slug: str) -> dict[str, object] | None:
         """
         Get the data of a component by its slug.
 
@@ -172,12 +172,12 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        Optional[dict[str, object]]
+        dict[str, object] | None
             The data of the component with the given slug or None if component is not installed.
         """
         return self._components_data.get(slug)
 
-    def get_manifest(self, slug: str) -> Optional[ComponentManifest]:
+    def get_manifest(self, slug: str) -> ComponentManifest | None:
         """
         Get a component manifest by its slug.
 
@@ -188,7 +188,7 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        Optional[ComponentManifest]
+        ComponentManifest | None
             The component manifest with the given slug or None if component is not installed.
         """
         return self._manifests.get(slug)
