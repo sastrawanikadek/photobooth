@@ -57,5 +57,8 @@ class SQLiteDatabase(DatabaseInterface):
 
     async def close(self) -> None:
         """Close the database connection and release resources."""
-        self._session = await self.session().close_all()
-        self._engine = await self.engine.dispose()
+        await self.session().close_all()
+        await self.engine.dispose()
+
+        self._session = None
+        self._engine = None

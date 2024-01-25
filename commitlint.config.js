@@ -24,6 +24,7 @@ module.exports = {
         "utils",
         "websocket",
         "database",
+        "settings_manager",
       ],
     ],
   },
