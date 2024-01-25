@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+from server.managers.settings import SettingSchema
 from server.utils.pydantic_fields import SlugStr
 
 
@@ -13,11 +14,18 @@ class ComponentManifest(BaseModel):
         The display name of the component.
     description : str
         The description of the component.
-    name : str
-        The name of the component class.
     slug : str
         The id of the component.
         example: "example-component"
+    preinstalled : bool
+        Whether the component is preinstalled or not.
+    name : str
+        The name of the component class.
+        example: "ExampleComponent"
+    requirements : dict[str, str]
+        Additional module that the component requires.
+    settings : list[SettingSchema]
+        The settings that the component provides.
     """
 
     display_name: str = Field(..., alias="displayName")
@@ -26,3 +34,4 @@ class ComponentManifest(BaseModel):
     preinstalled: bool = False
     name: str | None = None
     requirements: dict[str, str] | None = None
+    settings: list[SettingSchema] = []

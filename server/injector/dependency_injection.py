@@ -126,7 +126,7 @@ class DependencyInjector(DependencyInjectorInterface):
 
         return args
 
-    def inject_constructor(self, cls: _CT) -> _CT:
+    def inject_constructor(self, cls: type[_CT]) -> _CT:
         """
         Inject dependencies into a class using the constructor.
 
@@ -137,7 +137,7 @@ class DependencyInjector(DependencyInjectorInterface):
 
         Returns
         -------
-        type
+        object
             The instance of the class with dependencies injected.
 
         Raises
