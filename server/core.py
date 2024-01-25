@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from typing import cast
 
 from server.constants import COMPONENTS_PATH, DATABASE_CONNECTION_STRING
 from server.database import DatabaseInterface, SQLiteDatabase
@@ -11,10 +10,11 @@ from server.injector import (
     DependencyInjectorInterface,
 )
 from server.managers.component import ComponentManager, ComponentManagerInterface
+from server.managers.settings import SettingsManager, SettingsManagerInterface
 
 from .events import AppInitializedEvent, AppReadyEvent, AppStartupEvent
 from .interfaces import PhotoboothInterface, ServiceProviderInterface
-from .providers import AppServiceProvider
+from .providers import AppServiceProvider, SettingsServiceProvider
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,18 +52,20 @@ class Photobooth(PhotoboothInterface):
 
         Initialize the main components of the photobooth.
         """
-        main_components = {
-            EventBusInterface: self.eventbus,
-            DatabaseInterface: self.database,
-            DependencyInjectorInterface: self.dependency_injector,
-            ComponentManagerInterface: self.component_manager,
-        }
-        self._register_dependencies(
-            cast(dict[type, type], main_components), singleton=True
-        )
+        self._register_core_dependencies()
 
-        main_providers: list[type[ServiceProviderInterface]] = [AppServiceProvider]
+        main_providers: list[type[ServiceProviderInterface]] = [
+            AppServiceProvider,
+            SettingsServiceProvider,
+        ]
         self._register_providers(main_providers)
+
+        self.settings_manager = self.dependency_injector.inject_constructor(
+            SettingsManager
+        )
+        self.dependency_container.singleton(
+            SettingsManagerInterface, self.settings_manager
+        )
 
         _LOGGER.info("App initialized")
         self.eventbus.dispatch(AppInitializedEvent())
@@ -75,6 +77,7 @@ class Photobooth(PhotoboothInterface):
         Load all the necessary components and settings.
         """
         self.component_manager.load_preinstalled()
+        self._load_settings()
 
         for provider in self._providers:
             provider.register()
@@ -88,6 +91,18 @@ class Photobooth(PhotoboothInterface):
         self.eventbus.dispatch(AppReadyEvent())
 
         await asyncio.Future()
+
+    def _register_core_dependencies(self) -> None:
+        """Register the core dependencies in the dependency container."""
+        dependencies = {
+            EventBusInterface: self.eventbus,
+            DatabaseInterface: self.database,
+            DependencyInjectorInterface: self.dependency_injector,
+            ComponentManagerInterface: self.component_manager,
+        }
+
+        for interface, instance in dependencies.items():
+            self.dependency_container.singleton(interface, instance)
 
     def _register_dependencies(
         self, dependencies: dict[type, type], singleton: bool = False
@@ -114,13 +129,13 @@ class Photobooth(PhotoboothInterface):
             resolved = True
 
             try:
-                instance = self.dependency_injector.inject_constructor(implementation)
+                instance: object = self.dependency_injector.inject_constructor(
+                    implementation
+                )
                 attempt = 0
             except ValueError:
                 failed.append((interface, implementation))
                 resolved = False
-            except TypeError:
-                instance = implementation
 
             if len(queues) == 0:
                 attempt += 1
@@ -162,3 +177,16 @@ class Photobooth(PhotoboothInterface):
             self._register_dependencies(instance.singletons, singleton=True)
 
             self._providers.append(instance)
+
+    def _load_settings(self) -> None:
+        """
+        Load the settings from different sources to
+        the settings manager.
+        """
+        manifests = self.component_manager.get_all_manifests()
+        schemas = {manifest.slug: manifest.settings for manifest in manifests}
+
+        for provider in self._providers:
+            schemas.update(provider.setting_schemas)
+
+        asyncio.create_task(self.settings_manager.load(schemas))

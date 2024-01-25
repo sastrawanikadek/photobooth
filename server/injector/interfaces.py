@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, ContextManager, TypeVar
 
-_CT = TypeVar("_CT")
+_CT = TypeVar("_CT", bound=object)
 _RT = TypeVar("_RT", bound=object)
 
 
@@ -42,7 +42,7 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
-    def inject_constructor(self, cls: _CT) -> _CT:
+    def inject_constructor(self, cls: type[_CT]) -> _CT:
         """
         Inject dependencies into a class.
 
@@ -53,7 +53,7 @@ class DependencyInjectorInterface(ABC):
 
         Returns
         -------
-        type
+        object
             The class with injected dependencies.
         """
 

@@ -4,6 +4,7 @@ from typing import Type
 from server.eventbus import Event, EventBusInterface, Listener
 from server.injector import DependencyContainerInterface, DependencyInjectorInterface
 from server.managers.component import ComponentManagerInterface
+from server.managers.settings import SettingSchema, SettingsManagerInterface
 
 
 class PhotoboothInterface(ABC):
@@ -28,6 +29,7 @@ class PhotoboothInterface(ABC):
     dependency_container: DependencyContainerInterface
     dependency_injector: DependencyInjectorInterface
     eventbus: EventBusInterface
+    settings_manager: SettingsManagerInterface
 
     @abstractmethod
     def initialize(self) -> None:
@@ -57,6 +59,7 @@ class ServiceProviderInterface:
     dependency_container: DependencyContainerInterface
     eventbus: EventBusInterface
     singletons: dict[type, type] = {}
+    setting_schemas: dict[str, list[SettingSchema]] = {}
     event_listeners: dict[Type[Event], list[Listener]] = {}
 
     def __init__(
