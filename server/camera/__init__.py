@@ -1,1 +1,0 @@
-"""Camera related module."""
