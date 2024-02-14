@@ -1,5 +1,8 @@
 from typing import cast
 
+from server.utils.helpers.serialization import json_serialize
+from server.utils.supports import Collection
+
 from .interfaces import _DT, SettingsManagerInterface
 from .models import Setting, SettingInfo, SettingSchema
 from .repositories import BackupSettingsRepository, SettingsRepository
@@ -44,13 +47,11 @@ class SettingsManager(SettingsManagerInterface):
 
         for source, source_settings in self._schemas.items():
             for schema in source_settings.values():
-                setting_value = next(
-                    (
-                        setting.value
-                        for setting in settings
-                        if setting.source == source and setting.key == schema.key
-                    ),
-                    schema.default_value,
+                setting = settings.first(
+                    lambda args: args[0].key == schema.key and args[0].source == source
+                )
+                setting_value = json_serialize(
+                    (setting.value if setting is not None else schema.default_value)
                 )
 
                 new_settings.append(
@@ -67,7 +68,7 @@ class SettingsManager(SettingsManagerInterface):
                 item.key: SettingInfo(
                     id=cast(int, item.id),
                     source=item.source,
-                    value=item.value,
+                    value=item.parsed_value,
                     **self._schemas[item.source][item.key].model_dump(),
                 )
             }
@@ -87,14 +88,14 @@ class SettingsManager(SettingsManagerInterface):
         """
         self._schemas.setdefault(source, {})[schema.key] = schema
 
-    def get_all(self) -> list[SettingInfo]:
+    def get_all(self) -> Collection[SettingInfo]:
         """
-        Get all settings from different sources as a list.
+        Get all settings from different sources as a collection.
 
         Returns
         -------
-        list[SettingInfo]
-            A list of settings from all sources.
+        Collection[SettingInfo]
+            A collection of settings from all sources.
         """
         settings: list[SettingInfo] = []
 
@@ -102,13 +103,13 @@ class SettingsManager(SettingsManagerInterface):
             for setting in source_settings.values():
                 settings.append(setting)
 
-        return settings
+        return Collection(settings)
 
-    def get(
+    def get_value(
         self, source: str, key: str, default: _DT | None = None
     ) -> object | _DT | None:
         """
-        Get a setting by its source and key.
+        Get a setting value by its source and key.
 
         Parameters
         ----------
@@ -122,7 +123,7 @@ class SettingsManager(SettingsManagerInterface):
         Returns
         -------
         object | None
-            The setting with the given source and key or the default value if it does not exist.
+            The setting value with the given source and key or the default value if it does not exist.
         """
         if source in self._settings and key in self._settings[source]:
             setting = self._settings[source][key]
@@ -134,9 +135,9 @@ class SettingsManager(SettingsManagerInterface):
 
         return default
 
-    def set(self, source: str, key: str, value: object) -> None:
+    def set_value(self, source: str, key: str, value: object) -> None:
         """
-        Set a setting by its source and key.
+        Set a setting value by its source and key.
 
         Parameters
         ----------
@@ -149,3 +150,17 @@ class SettingsManager(SettingsManagerInterface):
         """
         if source in self._settings and key in self._settings[source]:
             self._settings[source][key].value = value
+
+    def clear(self, source: str) -> None:
+        """
+        Clear all settings from the given source.
+
+        Parameters
+        ----------
+        source : str
+            The source of the settings to clear, it can only be a component slug.
+        """
+        if source == "system":
+            raise ValueError("Cannot clear system settings")
+
+        self._settings.pop(source, None)

@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar
 
+from server.utils.supports import Collection
+
 from .models import SettingInfo, SettingSchema
 
 _DT = TypeVar("_DT", bound=object)
@@ -38,22 +40,22 @@ class SettingsManagerInterface(ABC):
         """
 
     @abstractmethod
-    def get_all(self) -> list[SettingInfo]:
+    def get_all(self) -> Collection[SettingInfo]:
         """
-        Get all settings from different sources as a list.
+        Get all settings from different sources as a collection.
 
         Returns
         -------
-        list[SettingInfo]
-            A list of settings from all sources.
+        Collection[SettingInfo]
+            A collection of settings from all sources.
         """
 
     @abstractmethod
-    def get(
+    def get_value(
         self, source: str, key: str, default: _DT | None = None
     ) -> object | _DT | None:
         """
-        Get a setting by its source and key.
+        Get a setting value by its source and key.
 
         Parameters
         ----------
@@ -67,13 +69,13 @@ class SettingsManagerInterface(ABC):
         Returns
         -------
         object | None
-            The setting with the given source and key or the default value if it does not exist.
+            The setting value with the given source and key or the default value if it does not exist.
         """
 
     @abstractmethod
-    def set(self, source: str, key: str, value: object) -> None:
+    def set_value(self, source: str, key: str, value: object) -> None:
         """
-        Set a setting by its source and key.
+        Set a setting value by its source and key.
 
         Parameters
         ----------
@@ -83,4 +85,15 @@ class SettingsManagerInterface(ABC):
             The key of the setting.
         value : object
             The value of the setting.
+        """
+
+    @abstractmethod
+    def clear(self, source: str) -> None:
+        """
+        Clear all settings from the given source.
+
+        Parameters
+        ----------
+        source : str
+            The source of the settings to clear, it can only be a component slug.
         """
