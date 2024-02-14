@@ -1,10 +1,10 @@
-"""Component for managing WebSocket connections and handling WebSocket messages."""
+"""Module for managing WebSocket connections and handling WebSocket messages."""
 
-from .component import WebSocket
 from .constants import SLUG
 from .exceptions import WebSocketHandlerError
 from .interfaces import WebSocketInterface, WebSocketMessagePayload
 from .models import WebSocketSuccessResponse
+from .server import WebSocket
 
 __all__ = [
     "SLUG",
