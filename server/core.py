@@ -6,15 +6,18 @@ from server.database import DatabaseInterface, SQLiteDatabase
 from server.eventbus import EventBus, EventBusInterface
 from server.injector import (
     DependencyContainer,
+    DependencyContainerInterface,
     DependencyInjector,
     DependencyInjectorInterface,
 )
 from server.managers.component import ComponentManager, ComponentManagerInterface
 from server.managers.settings import SettingsManager, SettingsManagerInterface
+from server.websocket import WebSocket, WebSocketInterface
 
 from .events import AppInitializedEvent, AppReadyEvent, AppStartupEvent
-from .interfaces import PhotoboothInterface, ServiceProviderInterface
-from .providers import AppServiceProvider, SettingsServiceProvider
+from .interfaces import PhotoboothInterface
+from .providers import DEFAULT_PROVIDERS, ServiceProviderInterface
+from .proxy import PhotoboothApp, set_photobooth
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +48,7 @@ class Photobooth(PhotoboothInterface):
         self.component_manager = ComponentManager(
             COMPONENTS_PATH, self.dependency_injector
         )
+        self.websocket = WebSocket(self.dependency_injector)
 
     def initialize(self) -> None:
         """
@@ -53,12 +57,7 @@ class Photobooth(PhotoboothInterface):
         Initialize the main components of the photobooth.
         """
         self._register_core_dependencies()
-
-        main_providers: list[type[ServiceProviderInterface]] = [
-            AppServiceProvider,
-            SettingsServiceProvider,
-        ]
-        self._register_providers(main_providers)
+        self._register_providers(DEFAULT_PROVIDERS)
 
         self.settings_manager = self.dependency_injector.inject_constructor(
             SettingsManager
@@ -74,20 +73,35 @@ class Photobooth(PhotoboothInterface):
         """
         Prepare the photobooth.
 
-        Load all the necessary components and settings.
+        Load all the necessary components and providers.
         """
-        self.component_manager.load_preinstalled()
-        self._load_settings()
-
-        for provider in self._providers:
-            provider.register()
+        self._load_preinstalled_components()
 
         _LOGGER.info("App starting up")
         self.eventbus.dispatch(AppStartupEvent())
 
     async def startup(self) -> None:
-        """Start the photobooth."""
-        _LOGGER.info("App started")
+        """
+        Start the photobooth.
+
+        Load all the settings and start necessary services.
+        """
+        self._load_settings()
+
+        # Invoke the boot method of the service providers
+        injected_boot_methods = [
+            self.dependency_injector.call_with_injection(provider.boot)
+            for provider in self._providers
+        ]
+        await asyncio.gather(*injected_boot_methods)
+
+        # Start the websocket server
+        asyncio.create_task(self.websocket.start())
+
+        # Set the app proxy
+        set_photobooth(PhotoboothApp(self))
+
+        _LOGGER.info("App ready")
         self.eventbus.dispatch(AppReadyEvent())
 
         await asyncio.Future()
@@ -97,8 +111,10 @@ class Photobooth(PhotoboothInterface):
         dependencies = {
             EventBusInterface: self.eventbus,
             DatabaseInterface: self.database,
+            DependencyContainerInterface: self.dependency_container,
             DependencyInjectorInterface: self.dependency_injector,
             ComponentManagerInterface: self.component_manager,
+            WebSocketInterface: self.websocket,
         }
 
         for interface, instance in dependencies.items():
@@ -176,13 +192,37 @@ class Photobooth(PhotoboothInterface):
             self._register_dependencies(instance.dependencies)
             self._register_dependencies(instance.singletons, singleton=True)
 
+            # Register websocket routes
+            for route in instance.websocket_routes:
+                self.websocket.add_handler(*route)
+
+            # Invoke provider register method
+            instance.register()
+
             self._providers.append(instance)
+
+    def _load_preinstalled_components(self) -> None:
+        """Load all the preinstalled components."""
+        _LOGGER.info("Loading preinstalled components")
+
+        self.component_manager.load_preinstalled()
+        manifests = self.component_manager.get_all_manifests()
+
+        # Register components providers
+        providers = [
+            provider for manifest in manifests for provider in manifest.providers
+        ]
+        self._register_providers(providers)
+
+        _LOGGER.info("Preinstalled components loaded")
 
     def _load_settings(self) -> None:
         """
         Load the settings from different sources to
         the settings manager.
         """
+        _LOGGER.info("Loading settings")
+
         manifests = self.component_manager.get_all_manifests()
         schemas = {manifest.slug: manifest.settings for manifest in manifests}
 
@@ -190,3 +230,5 @@ class Photobooth(PhotoboothInterface):
             schemas.update(provider.setting_schemas)
 
         asyncio.create_task(self.settings_manager.load(schemas))
+
+        _LOGGER.info("Settings loaded")
