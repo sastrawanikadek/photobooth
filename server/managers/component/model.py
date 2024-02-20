@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 from server.managers.settings import SettingSchema
+from server.providers.interface import ServiceProviderInterface
 from server.utils.pydantic_fields import SlugStr
 
 
@@ -26,6 +27,8 @@ class ComponentManifest(BaseModel):
         Additional module that the component requires.
     settings : list[SettingSchema]
         The settings that the component provides.
+    providers : list[type[ServiceProviderInterface]]
+        Service providers that the component provides.
     """
 
     display_name: str = Field(..., alias="displayName")
@@ -35,3 +38,4 @@ class ComponentManifest(BaseModel):
     name: str | None = None
     requirements: dict[str, str] | None = None
     settings: list[SettingSchema] = []
+    providers: list[type[ServiceProviderInterface]] = []

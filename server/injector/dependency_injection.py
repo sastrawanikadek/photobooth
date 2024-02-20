@@ -63,7 +63,7 @@ class DependencyInjector(DependencyInjectorInterface):
         finally:
             self.containers.remove(container)
 
-    def _resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
+    def resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
         """
         Resolve the dependencies for a function.
 
@@ -106,9 +106,9 @@ class DependencyInjector(DependencyInjectorInterface):
 
                 try:
                     if callable(implementation):
-                        dependency_args = self._resolve_dependencies(implementation)
+                        dependency_args = self.resolve_dependencies(implementation)
                     else:
-                        dependency_args = self._resolve_dependencies(
+                        dependency_args = self.resolve_dependencies(
                             implementation.__init__
                         )
                 except ValueError:
@@ -166,7 +166,7 @@ class DependencyInjector(DependencyInjectorInterface):
         if not inspect.isclass(cls):
             raise TypeError(f'"{cls}" is not a class')
 
-        args = self._resolve_dependencies(cls.__init__)
+        args = self.resolve_dependencies(cls.__init__)
         instance = cls(*args)
         return cast(_CT, instance)
 
@@ -181,7 +181,7 @@ class DependencyInjector(DependencyInjectorInterface):
 
         Returns
         -------
-        _RT
+        object
             The result of the function.
 
         Raises
@@ -204,5 +204,5 @@ class DependencyInjector(DependencyInjectorInterface):
         ...     await injector.call_with_injection(test)
         <__main__.Implementation object at 0x7f5d6f9b6f10>
         """
-        args = self._resolve_dependencies(func)
+        args = self.resolve_dependencies(func)
         return cast(_RT, await safe_invoke(func, *args))

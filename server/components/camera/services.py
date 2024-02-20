@@ -1,17 +1,19 @@
 import asyncio
 import functools
 import logging
-from typing import Callable, Coroutine, ParamSpec, TypeVar
+from typing import Callable, Coroutine, TypeVar
 
 import gphoto2 as gp
 import pendulum
 from typing_extensions import Self
 
+from server.utils.supports import Collection
+
 from .exceptions import DeviceUSBNotFoundError, ModelNotFoundError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
+from .widgets import CameraWidget, RadioWidget, TextWidget, ToggleWidget
 
 _LOGGER = logging.getLogger(__name__)
-_P = ParamSpec("_P")
 _DecoratedReturn = TypeVar("_DecoratedReturn")
 
 
@@ -28,16 +30,16 @@ class CameraManager(CameraManagerInterface):
     camera: CameraDeviceInterface | None = None
 
     @staticmethod
-    def auto_detect() -> list[tuple[str, str]]:
+    def auto_detect() -> Collection[tuple[str, str]]:
         """
         Detect all cameras connected to the computer.
 
         Returns
         -------
-        list[tuple[str, str]]
-            A list of tuples containing the camera model and address.
+        Collection[tuple[str, str]]
+            A collection of tuples containing the camera model and address.
         """
-        return list(gp.Camera.autodetect())
+        return Collection(gp.Camera.autodetect())
 
     def connect(self, address: str | None = None) -> Self:
         """
@@ -55,17 +57,13 @@ class CameraManager(CameraManagerInterface):
         """
         detected_cameras = self.auto_detect()
 
-        if len(detected_cameras) == 0:
+        if detected_cameras.is_empty():
             _LOGGER.debug("No cameras detected")
             return self
 
-        camera_info = next(
-            (
-                item
-                for item in detected_cameras
-                if address is None or (address is not None and item[1] == address)
-            ),
-            None,
+        camera_info = detected_cameras.first(
+            lambda args: address is None
+            or (address is not None and args[0][1] == address)
         )
 
         if camera_info is None:
@@ -98,8 +96,13 @@ class CameraManager(CameraManagerInterface):
     async def disconnect(self) -> None:
         """Disconnect the camera."""
         if self.camera is not None:
-            await self.camera.close()
-            self.camera = None
+            try:
+                await self.camera.close()
+            except DeviceUSBNotFoundError:
+                # Do nothing if the device is already disconnected
+                pass
+            finally:
+                self.camera = None
 
 
 class CameraDevice(CameraDeviceInterface):
@@ -121,7 +124,7 @@ class CameraDevice(CameraDeviceInterface):
     last_active = pendulum.now()
     _lock = asyncio.Lock()
 
-    def __init__(self, camera: gp.Camera, context: gp.Context):
+    def __init__(self, camera: gp.Camera, context: gp.Context) -> None:
         self._camera = camera
         self._context = context
 
@@ -135,7 +138,7 @@ class CameraDevice(CameraDeviceInterface):
             self: Self, *args: object, **kwargs: object
         ) -> _DecoratedReturn:
             self.last_active = pendulum.now()
-            return await func(*args, **kwargs)
+            return await func(self, *args, **kwargs)
 
         return wrapper
 
@@ -220,6 +223,18 @@ class CameraDevice(CameraDeviceInterface):
         await asyncio.to_thread(file.save, filename)
         return bytes(file.get_data_and_size())
 
+    @_camera_activity
+    async def get_config(self) -> list[CameraWidget]:
+        """Get the configuration provided by the camera."""
+        async with self._lock:
+            try:
+                config = await asyncio.to_thread(self._camera.get_config, self._context)
+                widgets = self._get_widgets(config)
+            except gp.GPhoto2Error as e:
+                self._error_handler(e)
+
+            return widgets
+
     async def close(self) -> None:
         """Close the connection to the camera."""
         async with self._lock:
@@ -236,3 +251,54 @@ class CameraDevice(CameraDeviceInterface):
             raise DeviceUSBNotFoundError("The camera is not connected to USB port.")
         else:
             raise exception
+
+    def _get_widgets(
+        self, config: gp.GP_WIDGET_WINDOW | gp.GP_WIDGET_SECTION
+    ) -> list[CameraWidget]:
+        """Get the widgets from the camera configuration."""
+        children: list[CameraWidget] = []
+        excluded_widgets = [
+            gp.GP_WIDGET_MENU,
+            gp.GP_WIDGET_BUTTON,
+            gp.GP_WIDGET_DATE,
+        ]
+
+        for child in config.get_children():
+            if child.get_type() == gp.GP_WIDGET_SECTION:
+                children.extend(self._get_widgets(child))
+                continue
+
+            if child.get_type() in excluded_widgets or child.get_readonly():
+                continue
+
+            widget_id = child.get_id()
+            widget_name = child.get_name()
+            widget_label = child.get_label()
+            widget_value = child.get_value()
+
+            widget: CameraWidget = TextWidget(
+                id=widget_id,
+                name=widget_name,
+                label=widget_label,
+                value=widget_value,
+            )
+
+            if child.get_type() == gp.GP_WIDGET_RADIO:
+                widget = RadioWidget(
+                    id=widget_id,
+                    name=widget_name,
+                    label=widget_label,
+                    value=widget_value,
+                    options=list(child.get_choices()),
+                )
+            elif child.get_type() == gp.GP_WIDGET_TOGGLE:
+                widget = ToggleWidget(
+                    id=widget_id,
+                    name=widget_name,
+                    label=widget_label,
+                    value=1 if bool(int(widget_value)) else 0,
+                )
+
+            children.append(widget)
+
+        return children

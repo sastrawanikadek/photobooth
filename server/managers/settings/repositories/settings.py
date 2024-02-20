@@ -1,9 +1,10 @@
-from typing import Sequence
+from typing import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
 
 from server.database import DatabaseInterface
+from server.utils.supports import Collection
 
 from ..models import Setting
 
@@ -29,20 +30,29 @@ class SettingsRepository:
         """
         self._db = db
 
-    async def get(self) -> Sequence[Setting]:
+    async def get(self, session: AsyncSession | None = None) -> Collection[Setting]:
         """
         Get all settings.
 
+        Parameters
+        ----------
+        session : AsyncSession | None
+            The database session.
+
         Returns
         -------
-        Sequence[Setting]
+        Collection[Setting]
             The settings.
         """
-        async with self._db.session() as session:
-            stmt = select(Setting)
+        stmt = select(Setting)
+
+        if session is not None:
             results = await session.execute(stmt)
-            settings: Sequence[Setting] = results.scalars().all()
-            return settings
+        else:
+            async with self._db.session() as session:
+                results = await session.execute(stmt)
+
+        return Collection(results.scalars().all())
 
     async def create(
         self, setting: Setting, session: AsyncSession | None = None
@@ -74,33 +84,33 @@ class SettingsRepository:
             return setting
 
     async def create_many(
-        self, settings: Sequence[Setting], session: AsyncSession | None = None
-    ) -> Sequence[Setting]:
+        self, settings: Iterable[Setting], session: AsyncSession | None = None
+    ) -> Collection[Setting]:
         """
         Create multiple settings.
 
         Parameters
         ----------
-        settings : Sequence[Setting]
+        settings : Iterable[Setting]
             The settings to create.
         session : AsyncSession | None
             The database session.
 
         Returns
         -------
-        Sequence[Setting]
+        Collection[Setting]
             The created settings.
         """
         if session is not None:
             session.add_all(settings)
             await session.flush()
-            return settings
+            return Collection(settings)
 
         async with self._db.session() as session:
             session.add_all(settings)
             await session.flush()
             await session.commit()
-            return settings
+            return Collection(settings)
 
     async def truncate(self, session: AsyncSession | None = None) -> None:
         """
@@ -120,21 +130,21 @@ class SettingsRepository:
             await session.commit()
 
     async def overwrite(
-        self, settings: Sequence[Setting], session: AsyncSession | None = None
-    ) -> Sequence[Setting]:
+        self, settings: Iterable[Setting], session: AsyncSession | None = None
+    ) -> Collection[Setting]:
         """
         Overwrite all settings.
 
         Parameters
         ----------
-        settings : Sequence[Setting]
+        settings : Iterable[Setting]
             The settings to overwrite.
         session : AsyncSession | None
             The database session.
 
         Returns
         -------
-        Sequence[Setting]
+        Collection[Setting]
             The overwritten settings.
         """
         if session is not None:

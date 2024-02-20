@@ -1,9 +1,10 @@
-from typing import Sequence
+from typing import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
 
 from server.database import DatabaseInterface
+from server.utils.supports import Collection
 
 from ..models import BackupSetting, Setting
 
@@ -29,7 +30,9 @@ class BackupSettingsRepository:
         """
         self._db = db
 
-    async def get(self, session: AsyncSession | None = None) -> Sequence[BackupSetting]:
+    async def get(
+        self, session: AsyncSession | None = None
+    ) -> Collection[BackupSetting]:
         """
         Get all backup settings.
 
@@ -40,49 +43,47 @@ class BackupSettingsRepository:
 
         Returns
         -------
-        Sequence[BackupSetting]
+        Collection[BackupSetting]
             The backup settings.
         """
-        if session is not None:
-            stmt = select(BackupSetting)
-            results = await session.execute(stmt)
-            backup_settings: Sequence[BackupSetting] = results.scalars().all()
-            return backup_settings
+        stmt = select(BackupSetting)
 
-        async with self._db.session() as session:
-            stmt = select(BackupSetting)
+        if session is not None:
             results = await session.execute(stmt)
-            backup_settings = results.scalars().all()
-            return backup_settings
+        else:
+            async with self._db.session() as session:
+                results = await session.execute(stmt)
+
+        return Collection(results.scalars().all())
 
     async def create_many(
-        self, settings: Sequence[BackupSetting], session: AsyncSession | None = None
-    ) -> Sequence[BackupSetting]:
+        self, settings: Iterable[BackupSetting], session: AsyncSession | None = None
+    ) -> Collection[BackupSetting]:
         """
         Create multiple settings.
 
         Parameters
         ----------
-        settings : Sequence[BackupSetting]
+        settings : Iterable[BackupSetting]
             The settings to create.
         session : AsyncSession | None
             The database session.
 
         Returns
         -------
-        Sequence[BackupSetting]
+        Collection[BackupSetting]
             The created settings.
         """
         if session is not None:
             session.add_all(settings)
             await session.flush()
-            return settings
+            return Collection(settings)
 
         async with self._db.session() as session:
             session.add_all(settings)
             await session.flush()
             await session.commit()
-            return settings
+            return Collection(settings)
 
     async def truncate(self, session: AsyncSession | None = None) -> None:
         """
@@ -102,14 +103,14 @@ class BackupSettingsRepository:
             await session.commit()
 
     async def backup(
-        self, settings: Sequence[Setting], session: AsyncSession | None = None
+        self, settings: Iterable[Setting], session: AsyncSession | None = None
     ) -> None:
         """
         Backup the settings table.
 
         Parameters
         ----------
-        settings : Sequence[Setting]
+        settings : Iterable[Setting]
             The settings to backup.
         session : AsyncSession | None
             The database session.
@@ -128,7 +129,7 @@ class BackupSettingsRepository:
             await self.create_many(backup_settings, session=session)
             await session.commit()
 
-    async def restore(self, session: AsyncSession | None = None) -> Sequence[Setting]:
+    async def restore(self, session: AsyncSession | None = None) -> Collection[Setting]:
         """
         Restore the settings data from the backup.
 
@@ -139,13 +140,10 @@ class BackupSettingsRepository:
 
         Returns
         -------
-        Sequence[Setting]
+        Collection[Setting]
             The restored settings.
         """
         backup_settings = await self.get(session)
-
-        settings = [
-            Setting(**backup_setting.model_dump()) for backup_setting in backup_settings
-        ]
+        settings = backup_settings.map(lambda args: Setting(**args[0].model_dump()))
 
         return settings

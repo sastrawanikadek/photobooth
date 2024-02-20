@@ -42,6 +42,22 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
+    def resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
+        """
+        Resolve the dependencies for a function.
+
+        Parameters
+        ----------
+        func : callable
+            The function to resolve dependencies for.
+
+        Returns
+        -------
+        list[object]
+            The resolved dependencies.
+        """
+
+    @abstractmethod
     def inject_constructor(self, cls: type[_CT]) -> _CT:
         """
         Inject dependencies into a class.
@@ -69,7 +85,7 @@ class DependencyInjectorInterface(ABC):
 
         Returns
         -------
-        _RT
+        object
             The result of the function.
         """
 

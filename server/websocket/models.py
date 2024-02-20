@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, PrivateAttr
 
+from server.utils.supports import JSONEncoder
+
 from .interfaces import WebSocketMessagePayload
 
 
@@ -58,7 +60,7 @@ class WebSocketSuccessResponse(BaseModel):
 
     def to_json(self) -> str:
         """JSON representation of the response."""
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), cls=JSONEncoder)
 
 
 class WebSocketErrorResponse(BaseModel):
@@ -93,4 +95,4 @@ class WebSocketErrorResponse(BaseModel):
 
     def to_json(self) -> str:
         """JSON representation of the response."""
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), cls=JSONEncoder)

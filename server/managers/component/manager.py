@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 from typing import cast
@@ -67,13 +66,22 @@ class ComponentManager(ComponentManagerInterface):
         ComponentManifest | None
             The manifest of the component.
         """
-        manifest_path = component_path / "manifest.json"
+        module = import_module_by_path(component_path / "manifest")
 
-        if not manifest_path.exists():
+        if module is None or not hasattr(module, "__MANIFEST__"):
+            _LOGGER.warning(
+                "Component %s does not have a manifest.", component_path.name
+            )
             return None
 
-        manifest_data = json.load(open(manifest_path))
-        return ComponentManifest(**manifest_data)
+        if not isinstance(module.__MANIFEST__, ComponentManifest):
+            _LOGGER.warning(
+                "Component %s manifest must an instance of Component Manifest.",
+                component_path.name,
+            )
+            return None
+
+        return module.__MANIFEST__
 
     def _load_component(
         self, component_path: Path, manifest: ComponentManifest
@@ -121,7 +129,7 @@ class ComponentManager(ComponentManagerInterface):
             [
                 component_path
                 for component_path in self._path.iterdir()
-                if component_path.is_dir()
+                if component_path.is_dir() and not component_path.name.startswith("_")
             ],
             key=lambda x: x.name,
         )
@@ -143,7 +151,7 @@ class ComponentManager(ComponentManagerInterface):
             self._components_data[manifest.slug] = {}
             self._manifests[manifest.slug] = manifest
 
-            _LOGGER.info("Loaded component %s", manifest.display_name)
+            _LOGGER.info("Component %s loaded", manifest.display_name)
 
     def get(self, slug: str) -> ComponentInterface | None:
         """

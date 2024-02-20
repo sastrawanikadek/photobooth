@@ -3,52 +3,9 @@ from abc import ABC, abstractmethod
 from pendulum import DateTime
 from typing_extensions import Self
 
+from server.utils.supports import Collection
 
-class CameraManagerInterface(ABC):
-    """
-    Interface for camera manager.
-
-    Camera manager is responsible for detecting and connecting to a camera device.
-
-    Attributes
-    ----------
-    camera : CameraDeviceInterface | None
-        The connected camera device.
-    """
-
-    camera: "CameraDeviceInterface" | None = None
-
-    @staticmethod
-    @abstractmethod
-    def auto_detect() -> list[tuple[str, str]]:
-        """
-        Detect all cameras connected to the computer.
-
-        Returns
-        -------
-        list[tuple[str, str]]
-            A list of tuples containing the camera model and address.
-        """
-
-    @abstractmethod
-    def connect(self, address: str | None = None) -> Self:
-        """
-        Connect to a first camera or a camera with a specific address.
-
-        Parameters
-        ----------
-        address : str | None
-            The address of the camera to connect to.
-
-        Returns
-        -------
-        Self
-            The camera manager.
-        """
-
-    @abstractmethod
-    async def disconnect(self) -> None:
-        """Disconnect the camera."""
+from .widgets import CameraWidget
 
 
 class CameraDeviceInterface(ABC):
@@ -102,7 +59,56 @@ class CameraDeviceInterface(ABC):
         """
 
     @abstractmethod
+    async def get_config(self) -> list[CameraWidget]:
+        """Get the configuration provided by the camera."""
+
+    @abstractmethod
     async def close(self) -> None:
+        """Close the connection to the camera."""
+
+
+class CameraManagerInterface(ABC):
+    """
+    Interface for camera manager.
+
+    Camera manager is responsible for detecting and connecting to a camera device.
+
+    Attributes
+    ----------
+    camera : CameraDeviceInterface | None
+        The connected camera device.
+    """
+
+    camera: CameraDeviceInterface | None = None
+
+    @staticmethod
+    @abstractmethod
+    def auto_detect() -> Collection[tuple[str, str]]:
         """
-        Close the connection to the camera.
+        Detect all cameras connected to the computer.
+
+        Returns
+        -------
+        Collection[tuple[str, str]]
+            A collection of tuples containing the camera model and address.
         """
+
+    @abstractmethod
+    def connect(self, address: str | None = None) -> Self:
+        """
+        Connect to a first camera or a camera with a specific address.
+
+        Parameters
+        ----------
+        address : str | None
+            The address of the camera to connect to.
+
+        Returns
+        -------
+        Self
+            The camera manager.
+        """
+
+    @abstractmethod
+    async def disconnect(self) -> None:
+        """Disconnect the camera."""
