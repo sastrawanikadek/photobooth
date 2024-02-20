@@ -95,6 +95,8 @@ class Photobooth(PhotoboothInterface):
         ]
         await asyncio.gather(*injected_boot_methods)
 
+        await self.settings_manager.sync()
+
         # Start the websocket server
         asyncio.create_task(self.websocket.start())
 
@@ -229,6 +231,8 @@ class Photobooth(PhotoboothInterface):
         for provider in self._providers:
             schemas.update(provider.setting_schemas)
 
-        asyncio.create_task(self.settings_manager.load(schemas))
+        asyncio.create_task(
+            self.settings_manager.add_schemas(schemas, schema_only=True)
+        )
 
         _LOGGER.info("Settings loaded")

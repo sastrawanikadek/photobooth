@@ -40,5 +40,5 @@ def json_deserialize(value: str | bytes | bytearray | None) -> object:
 
     try:
         return json.loads(value)
-    except json.JSONDecodeError:
+    except Exception:
         return value

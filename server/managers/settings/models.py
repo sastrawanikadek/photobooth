@@ -1,8 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, model_validator
-from pydantic import Field as PydanticField
+from pydantic import BaseModel, model_validator
 from sqlalchemy import func
 from sqlmodel import Field, SQLModel
 from typing_extensions import Self
@@ -16,6 +15,7 @@ Display = Literal[
     "select",
     "checkbox",
     "radio",
+    "toggle",
 ]
 
 ValueType = Literal[
@@ -137,20 +137,18 @@ class SettingSchema(BaseModel):
         Data type of the setting (e.g. integer, boolean, string, float).
     default_value : object
         The default value of the setting.
-    options : list[SettingOption]
+    options : list[str] | list[SettingOption]
         The options of the setting if it has select, checkbox, or radio display.
     description : str
         The description of the setting.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
-
     key: str
     title: str
     display: Display
     type: ValueType
-    default_value: object | None = PydanticField(None, alias="defaultValue")
-    options: list[SettingOption] | None = None
+    default_value: object | None = None
+    options: list[str] | list[SettingOption] | None = None
     description: str | None = None
 
     @model_validator(mode="before")
@@ -184,7 +182,10 @@ class SettingSchema(BaseModel):
     def check_options_value(self) -> Self:
         """Check if the options value type is the same as the setting type."""
         for option in self.options or []:
-            if not isinstance(option.value, type_mapping[self.type]):
+            if (isinstance(option, str) and self.type != "string") or (
+                isinstance(option, SettingOption)
+                and not isinstance(option.value, type_mapping[self.type])
+            ):
                 raise ValueError(
                     f'Option value type of setting "{self.key}" must be {self.type}',
                 )
@@ -197,21 +198,23 @@ class SettingInfo(SettingSchema):
 
     Attributes
     ----------
-    id : int
-        The ID of the setting.
+    id : int | None
+        The ID of the setting, if it's None then it's a new setting.
     source : SlugStr
         The source of the setting, it can be "system" or component slug.
     value : object
         The value of the setting.
     """
 
-    id: int
+    id: int | None = None
     source: SlugStr
     value: object | None = None
 
     @model_validator(mode="after")
     def check_value_type(self) -> Self:
         """Check if the value type is the same as the setting type."""
-        if not isinstance(self.value, type_mapping[self.type]):
-            raise ValueError(f'Value type of setting "{self.id}" must be {self.type}')
+        if self.value is not None and not isinstance(
+            self.value, type_mapping[self.type]
+        ):
+            raise ValueError(f'Value type of setting "{self.key}" must be {self.type}')
         return self

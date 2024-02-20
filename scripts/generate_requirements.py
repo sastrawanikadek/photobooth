@@ -1,5 +1,7 @@
-import json
 from pathlib import Path
+
+from server.managers.component import ComponentManifest
+from server.utils.helpers.module import import_module_by_path
 
 COMPONENTS_PATH = Path("server", "components")
 REQUIREMENT_PATH = Path("requirements-components.txt")
@@ -13,13 +15,15 @@ with open(REQUIREMENT_PATH, "w") as f:
     )
 
     for component in components:
-        manifest_path = component / "manifest.json"
+        module = import_module_by_path(component / "manifest")
 
-        if not manifest_path.exists():
+        if module is None or not hasattr(module, "__MANIFEST__"):
             continue
 
-        manifest_file = json.load(open(manifest_path))
-        requirements = manifest_file.get("requirements", {})
+        if not isinstance(module.__MANIFEST__, ComponentManifest):
+            continue
+
+        requirements = module.__MANIFEST__.requirements
 
         if not requirements:
             continue

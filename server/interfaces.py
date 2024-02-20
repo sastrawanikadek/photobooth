@@ -5,6 +5,7 @@ from server.eventbus import Event, EventBusInterface
 from server.injector import DependencyContainerInterface, DependencyInjectorInterface
 from server.managers.component import ComponentInterface, ComponentManagerInterface
 from server.managers.settings import SettingSchema, SettingsManagerInterface
+from server.utils.pydantic_fields import SlugStr
 from server.websocket import WebSocketInterface
 
 TEvent = TypeVar("TEvent", bound=Event)
@@ -220,7 +221,9 @@ class PhotoboothAppInterface(ABC):
         """
 
     @abstractmethod
-    def add_setting_schema(self, source: str, schema: SettingSchema) -> None:
+    async def add_setting_schema(
+        self, source: str, schema: SettingSchema, persist: bool = False
+    ) -> None:
         """
         Add a new setting schema to the settings manager.
 
@@ -230,6 +233,29 @@ class PhotoboothAppInterface(ABC):
             The source of the setting, it can be "system" or component slug.
         schema : SettingSchema
             The schema of the setting.
+        persist : bool
+            Whether to persist the schema to the database, by default False.
+        """
+
+    @abstractmethod
+    async def add_setting_schemas(
+        self,
+        schemas: dict[SlugStr, list[SettingSchema]],
+        *,
+        persist: bool = False,
+        schema_only: bool = False,
+    ) -> None:
+        """
+        Add a new settings schema to the settings manager.
+
+        Parameters
+        ----------
+        schemas : dict[SlugStr, list[SettingSchema]]
+            The schemas of the settings to add, keyed by their source.
+        persist : bool
+            Whether to persist the schema to the database, by default False.
+        schema_only : bool
+            Whether to only add the schema to the settings manager, by default False.
         """
 
     @abstractmethod

@@ -3,6 +3,7 @@ from typing import Awaitable, Callable
 from server.eventbus import Event
 from server.managers.component import ComponentInterface
 from server.managers.settings import SettingSchema
+from server.utils.pydantic_fields import SlugStr
 
 from .interfaces import (
     PhotoboothAppInterface,
@@ -191,7 +192,9 @@ class PhotoboothApp(PhotoboothAppInterface):
         """
         return self._photobooth.component_manager.get_data(slug)
 
-    def add_setting_schema(self, source: str, schema: SettingSchema) -> None:
+    async def add_setting_schema(
+        self, source: str, schema: SettingSchema, persist: bool = False
+    ) -> None:
         """
         Add a new setting schema to the settings manager.
 
@@ -201,8 +204,33 @@ class PhotoboothApp(PhotoboothAppInterface):
             The source of the setting, it can be "system" or component slug.
         schema : SettingSchema
             The schema of the setting.
+        persist : bool
+            Whether to persist the schema to the database, by default False.
         """
-        self._photobooth.settings_manager.add_schema(source, schema)
+        await self._photobooth.settings_manager.add_schema(source, schema, persist)
+
+    async def add_setting_schemas(
+        self,
+        schemas: dict[SlugStr, list[SettingSchema]],
+        *,
+        persist: bool = False,
+        schema_only: bool = False,
+    ) -> None:
+        """
+        Add a new settings schema to the settings manager.
+
+        Parameters
+        ----------
+        schemas : dict[SlugStr, list[SettingSchema]]
+            The schemas of the settings to add, keyed by their source.
+        persist : bool
+            Whether to persist the schema to the database, by default False.
+        schema_only : bool
+            Whether to only add the schema to the settings manager, by default False.
+        """
+        await self._photobooth.settings_manager.add_schemas(
+            schemas, persist=persist, schema_only=schema_only
+        )
 
     def get_setting_value(
         self, source: str, key: str, default: TDefault | None = None
