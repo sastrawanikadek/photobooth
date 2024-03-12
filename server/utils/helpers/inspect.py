@@ -61,3 +61,22 @@ def has_same_signature(
         callable_parameters == parameters
         and signature.return_annotation == return_annotation
     )
+
+
+def class_has_method(cls: type, method: str) -> bool:
+    """
+    Check if the class has the given method.
+
+    Parameters
+    ----------
+    cls : type
+        The class to check.
+    method : str
+        The method to check.
+
+    Returns
+    -------
+    bool
+        True if the class has the method, otherwise False.
+    """
+    return hasattr(cls, method) and callable(getattr(cls, method))
