@@ -6,12 +6,11 @@ from uuid import uuid4
 
 import pendulum
 from typing_extensions import Self
-from websockets import WebSocketServerProtocol
 
 from server.components.camera.events import CameraActiveEvent
 from server.eventbus import EventBusInterface
 from server.utils.helpers.function import safe_invoke
-from server.websocket import WebSocketHandlerError, WebSocketSuccessResponse
+from server.websocket import WebSocketHandlerError
 
 from .exceptions import CameraError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
@@ -60,19 +59,6 @@ class APIHandler:
                 raise WebSocketHandlerError(str(e))
 
         return wrapper
-
-    @_camera_status_aware
-    async def capture_preview(self, websocket: WebSocketServerProtocol) -> None:
-        while True:
-            preview_bytes = await self._camera.capture_preview()
-            self._last_active = pendulum.now()
-            base64_bytes = base64.b64encode(preview_bytes)
-
-            await websocket.send(
-                WebSocketSuccessResponse(
-                    command="camera.capturePreview", payload=base64_bytes.decode()
-                ).to_json()
-            )
 
     @_camera_status_aware
     async def capture(self) -> str:

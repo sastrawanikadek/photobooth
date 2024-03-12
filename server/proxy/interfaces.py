@@ -1,26 +1,21 @@
-from typing import Awaitable, Callable
+from abc import ABC, abstractmethod
+from typing import Awaitable, Callable, TypeVar
 
-from server.eventbus import Event
+from server.eventbus import Event, EventType
 from server.managers.component import ComponentInterface
 from server.managers.settings import SettingSchema
 from server.utils.pydantic_fields import SlugStr
+from server.webserver import WebSocketMessageData
 
-from .interfaces import (
-    PhotoboothAppInterface,
-    PhotoboothInterface,
-    TClass,
-    TDefault,
-    TEvent,
-    TReturn,
-)
+ClassType = TypeVar("ClassType", bound=object)
+ReturnType = TypeVar("ReturnType", bound=object)
+DefaultType = TypeVar("DefaultType", bound=object)
 
 
-class PhotoboothApp(PhotoboothAppInterface):
-    """The photobooth app."""
+class PhotoboothAppInterface(ABC):
+    """Interface for the photobooth app."""
 
-    def __init__(self, photobooth: PhotoboothInterface) -> None:
-        self._photobooth = photobooth
-
+    @abstractmethod
     def dispatch(self, event: Event) -> None:
         """
         Dispatch an event to all registered listeners.
@@ -30,10 +25,12 @@ class PhotoboothApp(PhotoboothAppInterface):
         event : Event
             The event to dispatch.
         """
-        self._photobooth.eventbus.dispatch(event)
 
+    @abstractmethod
     def listen(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Register a listener for an event.
@@ -45,10 +42,12 @@ class PhotoboothApp(PhotoboothAppInterface):
         listener : Callable[[Event], None | Awaitable[None]]
             The listener to register.
         """
-        self._photobooth.eventbus.add_listener(event, listener)
 
+    @abstractmethod
     def remove_listener(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Unregister a listener for an event.
@@ -60,8 +59,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         listener : Callable[[Event], None | Awaitable[None]]
             The listener to unregister.
         """
-        self._photobooth.eventbus.remove_listener(event, listener)
 
+    @abstractmethod
     def bind(
         self, interface: type, implementation: type | Callable[..., object]
     ) -> None:
@@ -77,8 +76,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         implementation : type | Callable[..., object]
             The implementation or factory to bind to the interface.
         """
-        self._photobooth.dependency_container.bind(interface, implementation)
 
+    @abstractmethod
     def singleton(
         self, interface: type, implementation: object | Callable[[], object]
     ) -> None:
@@ -94,8 +93,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         implementation : object | Callable[[], object]
             The instance or factory to bind to the interface.
         """
-        self._photobooth.dependency_container.singleton(interface, implementation)
 
+    @abstractmethod
     def resolve(self, interface: type) -> object:
         """
         Resolve an implementation for an interface.
@@ -110,25 +109,9 @@ class PhotoboothApp(PhotoboothAppInterface):
         object
             The implementation for the interface.
         """
-        container = self._photobooth.dependency_container
-        instance = container.get_singleton(interface)
 
-        if instance is not None:
-            return instance
-
-        implementation = container.get_bind(interface)
-
-        if implementation is None:
-            raise ValueError(f'Could not resolve implementation for "{interface}"')
-        elif callable(implementation):
-            injector = self._photobooth.dependency_injector
-            args = injector.resolve_dependencies(implementation)
-            instance = implementation(*args)
-            return instance
-
-        return self._photobooth.dependency_injector.inject_constructor(implementation)
-
-    def inject_constructor(self, cls: type[TClass]) -> TClass:
+    @abstractmethod
+    def inject_constructor(self, cls: type[ClassType]) -> ClassType:
         """
         Inject dependencies into a class.
 
@@ -142,9 +125,9 @@ class PhotoboothApp(PhotoboothAppInterface):
         object
             The class with injected dependencies.
         """
-        return self._photobooth.dependency_injector.inject_constructor(cls)
 
-    async def call_with_injection(self, func: Callable[..., TReturn]) -> TReturn:
+    @abstractmethod
+    async def call_with_injection(self, func: Callable[..., ReturnType]) -> ReturnType:
         """
         Call a function with dependency injection.
 
@@ -158,8 +141,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         object
             The result of the function.
         """
-        return await self._photobooth.dependency_injector.call_with_injection(func)
 
+    @abstractmethod
     def get_component(self, slug: str) -> ComponentInterface | None:
         """
         Get a component by its slug.
@@ -174,8 +157,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         ComponentInterface | None
             The component with the given slug or None if not installed.
         """
-        return self._photobooth.component_manager.get(slug)
 
+    @abstractmethod
     def get_component_data(self, slug: str) -> dict[str, object] | None:
         """
         Get the data of a component by its slug.
@@ -190,8 +173,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         dict[str, object] | None
             The data of the component with the given slug or None if component is not installed.
         """
-        return self._photobooth.component_manager.get_data(slug)
 
+    @abstractmethod
     async def add_setting_schema(
         self, source: str, schema: SettingSchema, persist: bool = False
     ) -> None:
@@ -207,8 +190,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         persist : bool
             Whether to persist the schema to the database, by default False.
         """
-        await self._photobooth.settings_manager.add_schema(source, schema, persist)
 
+    @abstractmethod
     async def add_setting_schemas(
         self,
         schemas: dict[SlugStr, list[SettingSchema]],
@@ -228,13 +211,11 @@ class PhotoboothApp(PhotoboothAppInterface):
         schema_only : bool
             Whether to only add the schema to the settings manager, by default False.
         """
-        await self._photobooth.settings_manager.add_schemas(
-            schemas, persist=persist, schema_only=schema_only
-        )
 
+    @abstractmethod
     def get_setting_value(
-        self, source: str, key: str, default: TDefault | None = None
-    ) -> object | TDefault | None:
+        self, source: str, key: str, default: DefaultType | None = None
+    ) -> object | DefaultType | None:
         """
         Get a setting value by its source and key.
 
@@ -252,8 +233,8 @@ class PhotoboothApp(PhotoboothAppInterface):
         object | None
             The setting value with the given source and key or the default value if it does not exist.
         """
-        return self._photobooth.settings_manager.get_value(source, key, default)
 
+    @abstractmethod
     def set_setting_value(self, source: str, key: str, value: object) -> None:
         """
         Set a setting value by its source and key.
@@ -267,21 +248,16 @@ class PhotoboothApp(PhotoboothAppInterface):
         value : object
             The value of the setting.
         """
-        self._photobooth.settings_manager.set_value(source, key, value)
 
+    @abstractmethod
+    def broadcast(self, channel: str, payload: WebSocketMessageData) -> None:
+        """
+        Broadcast a message to a channel to all subscribed clients via WebSocket.
 
-_photobooth: PhotoboothAppInterface | None = None
-
-
-def set_photobooth(photobooth: PhotoboothAppInterface) -> None:
-    """Set the photobooth."""
-    global _photobooth
-    _photobooth = photobooth
-
-
-def app() -> PhotoboothAppInterface:
-    """Get the photobooth app instance."""
-    if _photobooth is None:
-        raise RuntimeError("Photobooth not set")
-
-    return _photobooth
+        Parameters
+        ----------
+        channel : str
+            The channel to broadcast to.
+        payload : WebSocketMessageData
+            The payload to broadcast.
+        """

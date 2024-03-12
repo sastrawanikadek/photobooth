@@ -1,6 +1,8 @@
 aiosqlite==0.19.0
+aiohttp[speedups]==3.9.3
 colorlog==6.7.0
 pendulum==3.0.0
+pydantic-extra-types==2.6.0
 SQLAlchemy[asyncio]==2.0.25
 sqlmodel==0.0.14
 uvloop==0.19.0

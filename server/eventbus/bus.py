@@ -1,12 +1,11 @@
 import asyncio
 import logging
-from collections import defaultdict
 from typing import Awaitable, Callable, cast
 
 from server.utils.helpers.function import safe_invokes
 
-from .interfaces import EventBusInterface, Listener, TEvent
-from .model import Event
+from .event import Event
+from .interfaces import EventBusInterface, EventType, Listener
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,14 +34,12 @@ class EventBus(EventBusInterface):
     Event(event_type='test', event_data=None, timestamp=datetime.datetime(2021, 5, 31, 21, 4, 21, 114361))
     """
 
-    _listeners: dict[type[Event], list[Listener]]
-
-    def __init__(self) -> None:
-        """Initialize the event bus."""
-        self._listeners = defaultdict(list)
+    _listeners: dict[type[Event], list[Listener]] = {}
 
     def add_listener(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Register a listener for an event.
@@ -66,7 +63,9 @@ class EventBus(EventBusInterface):
         self._listeners.setdefault(event, []).append(cast(Listener, listener))
 
     def remove_listener(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Unregister a listener for an event.
@@ -103,7 +102,7 @@ class EventBus(EventBusInterface):
                     event,
                 )
 
-    def dispatch(self, event: Event) -> None:
+    def dispatch(self, event: EventType) -> None:
         """
         Dispatch an event to all registered listeners.
 
@@ -125,7 +124,7 @@ class EventBus(EventBusInterface):
         """
         asyncio.create_task(self._async_dispatch(event))
 
-    async def _async_dispatch(self, event: Event) -> None:
+    async def _async_dispatch(self, event: EventType) -> None:
         """
         Dispatch an event to all registered listeners in an async context.
 

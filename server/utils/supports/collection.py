@@ -166,6 +166,10 @@ class Collection(Generic[_T]):
         """Return the union of the collection and the other collection."""
         return Collection(self._iterable + other.to_list())
 
+    def __serialize__(self) -> object:
+        """Return JSON serializable representation."""
+        return self.to_list()
+
     @classmethod
     def __get_pydantic_core_schema__(
         cls, _: object, handler: GetCoreSchemaHandler

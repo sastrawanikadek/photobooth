@@ -1,5 +1,6 @@
 """Module for settings management."""
 
+from .api_handlers import HTTPAPIHandler
 from .interfaces import SettingsManagerInterface
 from .manager import SettingsManager
 from .models import (
@@ -25,4 +26,5 @@ __all__ = [
     "SettingsRepository",
     "Display",
     "ValueType",
+    "HTTPAPIHandler",
 ]

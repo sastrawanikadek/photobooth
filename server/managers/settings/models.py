@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, model_validator
+from pydantic import Field as PydanticField
 from sqlalchemy import func
 from sqlmodel import Field, SQLModel
 from typing_extensions import Self
@@ -147,7 +148,9 @@ class SettingSchema(BaseModel):
     title: str
     display: Display
     type: ValueType
-    default_value: object | None = None
+    default_value: object | None = PydanticField(
+        None, serialization_alias="defaultValue"
+    )
     options: list[str] | list[SettingOption] | None = None
     description: str | None = None
 

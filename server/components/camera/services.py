@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import functools
 import logging
 from typing import Callable, Coroutine, TypeVar
@@ -7,7 +8,7 @@ import gphoto2 as gp
 import pendulum
 from typing_extensions import Self
 
-from server.utils.supports import Collection
+from server.utils.supports.collection import Collection
 
 from .exceptions import DeviceUSBNotFoundError, ModelNotFoundError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
@@ -186,7 +187,8 @@ class CameraDevice(CameraDeviceInterface):
             except gp.GPhoto2Error as e:
                 self._error_handler(e)
 
-        return bytes(file.get_data_and_size())
+        image_bytes = bytes(file.get_data_and_size())
+        return base64.b64encode(image_bytes)
 
     @_camera_activity
     async def capture_and_download(self, filename: str) -> bytes:
@@ -221,7 +223,8 @@ class CameraDevice(CameraDeviceInterface):
                 self._error_handler(e)
 
         await asyncio.to_thread(file.save, filename)
-        return bytes(file.get_data_and_size())
+        image_bytes = bytes(file.get_data_and_size())
+        return base64.b64encode(image_bytes)
 
     @_camera_activity
     async def get_config(self) -> list[CameraWidget]:

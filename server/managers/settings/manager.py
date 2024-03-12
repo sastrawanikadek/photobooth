@@ -1,6 +1,6 @@
 from server.utils.helpers.serialization import json_serialize
 from server.utils.pydantic_fields import SlugStr
-from server.utils.supports import Collection
+from server.utils.supports.collection import Collection
 
 from .interfaces import _DT, SettingsManagerInterface
 from .models import Setting, SettingInfo, SettingSchema
