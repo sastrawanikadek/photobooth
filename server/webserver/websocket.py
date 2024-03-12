@@ -1,11 +1,11 @@
 import asyncio
+import inspect
 import logging
 
 from aiohttp import web
-from pydantic import BaseModel
 
 from server.injector import DependencyInjectorInterface
-from server.utils.helpers.inspect import get_first_match_signature
+from server.utils.helpers.inspect import class_has_method
 from server.utils.helpers.module import get_calling_module
 
 from .exception_handlers import WebSocketExceptionHandler
@@ -20,6 +20,7 @@ from .models import (
     WebSocketIncomingMessage,
     WebSocketResponseMessage,
 )
+from .utils import bind_request_model, is_websocket_handler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class WebSocketComponent(WebSocketComponentInterface):
         if (
             len(args) == 3
             and isinstance(args[0], str)
-            and isinstance(args[1], type)
+            and inspect.isclass(args[1])
             and isinstance(args[2], str)
         ):
             return self._add_class_handler(args[0], args[1], args[2])
@@ -106,7 +107,7 @@ class WebSocketComponent(WebSocketComponentInterface):
             and "cls" in kwargs
             and "method" in kwargs
             and isinstance(kwargs["command"], str)
-            and isinstance(kwargs["cls"], type)
+            and inspect.isclass(kwargs["cls"])
             and isinstance(kwargs["method"], str)
         ):
             return self._add_class_handler(
@@ -284,6 +285,7 @@ class WebSocketComponent(WebSocketComponentInterface):
         ------
         ValueError
             If a handler for the command is already registered.
+            If the handler is not a valid WebSocket handler.
         """
         if command in self._handlers:
             calling_module = get_calling_module()
@@ -294,6 +296,9 @@ class WebSocketComponent(WebSocketComponentInterface):
                 calling_module.__name__ if calling_module is not None else "unknown",
             )
             raise ValueError(f"Handler for command {command} already registered")
+
+        if not is_websocket_handler(handler):
+            raise ValueError("Handler is not a valid WebSocket handler")
 
         self._handlers[command] = handler
 
@@ -315,6 +320,7 @@ class WebSocketComponent(WebSocketComponentInterface):
         ValueError
             If a handler for the command is already registered.
             If the method is not found on the class.
+            If the method is not a valid WebSocket handler.
         """
         if command in self._handlers:
             calling_module = get_calling_module()
@@ -326,8 +332,11 @@ class WebSocketComponent(WebSocketComponentInterface):
             )
             raise ValueError(f"Handler for command {command} already registered")
 
-        if not hasattr(cls, method):
+        if not class_has_method(cls, method):
             raise ValueError(f'Method "{method}" not found on class "{cls.__name__}"')
+
+        if not is_websocket_handler(getattr(cls, method)):
+            raise ValueError("Method is not a valid WebSocket handler")
 
         self._handlers[command] = (cls, method)
 
@@ -407,34 +416,31 @@ class WebSocketComponent(WebSocketComponentInterface):
 
         handler_value = self._handlers[incoming_message.command]
 
-        if callable(handler_value):
-            handler = handler_value
-        else:
-            cls, method = handler_value
-            instance: object = self._injector.inject_constructor(cls)
-            handler = getattr(instance, method)
-
         with self._injector.add_temporary_container() as container:
             container.singleton(web.WebSocketResponse, websocket)
 
-            model = get_first_match_signature(handler, BaseModel)
-            if model is not None:
+            if callable(handler_value):
+                handler = handler_value
+            else:
+                cls, method = handler_value
+                instance: object = self._injector.inject_constructor(cls)
+                handler = getattr(instance, method)
+
+            try:
                 payload = (
                     incoming_message.payload
                     if isinstance(incoming_message.payload, dict)
                     else {}
                 )
+                bind_request_model(container, handler, payload)
 
-                try:
-                    container.singleton(model, model(**payload))
-                except Exception as exc:
-                    error_response = self._exception_handler.handle(
-                        exc, websocket, incoming_message
-                    )
-                    await websocket.send_str(error_response.to_json())
-                    return
-
-            response = await self._injector.call_with_injection(handler)
+                response = await self._injector.call_with_injection(handler)
+            except Exception as exc:
+                error_response = self._exception_handler.handle(
+                    exc, websocket, incoming_message
+                )
+                await websocket.send_str(error_response.to_json())
+                return
 
         await websocket.send_str(
             WebSocketResponseMessage(
