@@ -22,9 +22,6 @@
     "type=volume,target=/var/lib/docker",
     "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock"
   ],
-  "containerEnv": {
-    "PYTHON_PATH": "/workspaces/app/server"
-  },
   "postAttachCommand": "/bin/bash .devcontainer/post-attach",
   "runArgs": ["-e", "GIT_EDITOR=code --wait", "--privileged", "--network=host"],
   "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspaces/app/",
