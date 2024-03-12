@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TypeVar
 
 from server.utils.pydantic_fields import SlugStr
-from server.utils.supports import Collection
+from server.utils.supports.collection import Collection
 
 from .models import SettingInfo, SettingSchema
 

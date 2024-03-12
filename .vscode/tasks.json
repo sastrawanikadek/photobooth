@@ -2,23 +2,8 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Setup outside Devcontainer",
-      "command": ". scripts/setup_outside_devcontainer.sh",
-      "type": "shell",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared",
-        "focus": true
-      },
-      "group": "build"
-    },
-    {
-      "label": "Start App outside Devcontainer",
-      "command": [
-        "[[ -d .venv ]] && ",
-        "source .venv/bin/activate && ",
-        "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main"
-      ],
+      "label": "Setup",
+      "command": ". scripts/setup.sh",
       "type": "shell",
       "presentation": {
         "reveal": "always",
@@ -29,7 +14,11 @@
     },
     {
       "label": "Start App",
-      "command": "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main",
+      "command": [
+        "[[ -d .venv ]] && ",
+        "source .venv/bin/activate && ",
+        "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main"
+      ],
       "type": "shell",
       "presentation": {
         "reveal": "always",

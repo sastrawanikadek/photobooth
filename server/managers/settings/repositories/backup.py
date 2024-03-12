@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
 
 from server.database import DatabaseInterface
-from server.utils.supports import Collection
+from server.utils.supports.collection import Collection
 
 from ..models import BackupSetting, Setting
 

@@ -30,3 +30,34 @@ def get_first_match_signature(
             return cast(_ST, parameter.annotation)
 
     return None
+
+
+def has_same_signature(
+    callable: Callable[..., object], parameters: list[object], return_annotation: object
+) -> bool:
+    """
+    Check if the given callable has exactly the same signature.
+
+    Parameters
+    ----------
+    callable : callable
+        The callable to check.
+    parameters : list
+        List of parameter annotations.
+    return_annotation : object
+        Type of the return.
+
+    Returns
+    -------
+    bool
+        True if the callable has exactly the same signature, otherwise False.
+    """
+    signature = inspect.signature(callable)
+    callable_parameters = [
+        parameter.annotation for parameter in signature.parameters.values()
+    ]
+
+    return (
+        callable_parameters == parameters
+        and signature.return_annotation == return_annotation
+    )

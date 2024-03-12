@@ -101,7 +101,7 @@ class ComponentManager(ComponentManagerInterface):
         ComponentInterface | None
             The component.
         """
-        module = import_module_by_path(component_path)
+        module = import_module_by_path(component_path / "component")
 
         if module is None:
             return None

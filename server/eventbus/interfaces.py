@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Awaitable, Callable, TypeVar
 
-from .model import Event
+from .event import Event
 
-TEvent = TypeVar("TEvent", bound=Event)
+EventType = TypeVar("EventType", bound=Event)
 Listener = Callable[[Event], None | Awaitable[None]]
 
 
@@ -12,7 +12,9 @@ class EventBusInterface(ABC):
 
     @abstractmethod
     def add_listener(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Register a listener for an event.
@@ -27,7 +29,9 @@ class EventBusInterface(ABC):
 
     @abstractmethod
     def remove_listener(
-        self, event: type[TEvent], listener: Callable[[TEvent], None | Awaitable[None]]
+        self,
+        event: type[EventType],
+        listener: Callable[[EventType], None | Awaitable[None]],
     ) -> None:
         """
         Unregister a listener for an event.
@@ -41,7 +45,7 @@ class EventBusInterface(ABC):
         """
 
     @abstractmethod
-    def dispatch(self, event: Event) -> None:
+    def dispatch(self, event: EventType) -> None:
         """
         Dispatch an event to all registered listeners.
 

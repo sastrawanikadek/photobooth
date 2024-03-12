@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pendulum import DateTime
 from typing_extensions import Self
 
-from server.utils.supports import Collection
+from server.utils.supports.collection import Collection
 
 from .widgets import CameraWidget
 

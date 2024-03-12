@@ -1,9 +1,9 @@
 from server.managers.settings import BackupSettingsRepository, SettingsRepository
 
-from .interface import ServiceProviderInterface
+from .base import ServiceProvider
 
 
-class AppServiceProvider(ServiceProviderInterface):
+class AppServiceProvider(ServiceProvider):
     """The application service provider."""
 
     singletons = {

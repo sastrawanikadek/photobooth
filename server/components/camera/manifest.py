@@ -2,7 +2,7 @@ from server.managers.component import ComponentManifest
 from server.managers.settings import SettingSchema
 
 from .constants import SETTING_IDLE_TIMEOUT_DURATION
-from .providers import WebSocketRoutesServiceProvider
+from .providers import ComponentServiceProvider
 
 __MANIFEST__ = ComponentManifest(
     displayName="Camera",
@@ -20,5 +20,5 @@ __MANIFEST__ = ComponentManifest(
             default_value=300,
         )
     ],
-    providers=[WebSocketRoutesServiceProvider],
+    providers=[ComponentServiceProvider],
 )

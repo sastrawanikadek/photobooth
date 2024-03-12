@@ -9,7 +9,7 @@ RUN apt update && apt upgrade -y \
     && apt install -y \
         apt-transport-https ca-certificates \
         curl git software-properties-common \
-        libgphoto2-dev python3 python3-pip
+        libgphoto2-dev python3 python3-pip python3-venv
 
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
         gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
@@ -26,3 +26,8 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | b
     && . $NVM_DIR/nvm.sh \
     && nvm install ${NODE_VERSION} \
     && npm i -g yarn
+
+# Install pyenv
+RUN curl https://pyenv.run | bash \
+    && echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> ~/.bashrc \
+    && echo 'eval "$(pyenv init -)"' >> ~/.bashrc

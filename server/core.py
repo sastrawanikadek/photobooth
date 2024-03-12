@@ -12,11 +12,11 @@ from server.injector import (
 )
 from server.managers.component import ComponentManager, ComponentManagerInterface
 from server.managers.settings import SettingsManager, SettingsManagerInterface
-from server.websocket import WebSocket, WebSocketInterface
+from server.webserver import WebServer, WebServerInterface
 
 from .events import AppInitializedEvent, AppReadyEvent, AppStartupEvent
 from .interfaces import PhotoboothInterface
-from .providers import DEFAULT_PROVIDERS, ServiceProviderInterface
+from .providers import DEFAULT_PROVIDERS, ServiceProvider
 from .proxy import PhotoboothApp, set_photobooth
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,9 +36,12 @@ class Photobooth(PhotoboothInterface):
         The dependency injector.
     eventbus : EventBusInterface
         The eventbus.
+    settings_manager : SettingsManagerInterface
+        The settings manager.
+
     """
 
-    _providers: list[ServiceProviderInterface] = []
+    _providers: list[ServiceProvider] = []
 
     def __init__(self) -> None:
         self.eventbus = EventBus()
@@ -48,7 +51,7 @@ class Photobooth(PhotoboothInterface):
         self.component_manager = ComponentManager(
             COMPONENTS_PATH, self.dependency_injector
         )
-        self.websocket = WebSocket(self.dependency_injector)
+        self.webserver = WebServer(self.dependency_injector)
 
     def initialize(self) -> None:
         """
@@ -97,8 +100,8 @@ class Photobooth(PhotoboothInterface):
 
         await self.settings_manager.sync()
 
-        # Start the websocket server
-        asyncio.create_task(self.websocket.start())
+        # Start the webserver
+        asyncio.create_task(self.webserver.start())
 
         # Set the app proxy
         set_photobooth(PhotoboothApp(self))
@@ -116,7 +119,7 @@ class Photobooth(PhotoboothInterface):
             DependencyContainerInterface: self.dependency_container,
             DependencyInjectorInterface: self.dependency_injector,
             ComponentManagerInterface: self.component_manager,
-            WebSocketInterface: self.websocket,
+            WebServerInterface: self.webserver,
         }
 
         for interface, instance in dependencies.items():
@@ -173,15 +176,13 @@ class Photobooth(PhotoboothInterface):
             else:
                 self.dependency_container.bind(interface, implementation)
 
-    def _register_providers(
-        self, providers: list[type[ServiceProviderInterface]]
-    ) -> None:
+    def _register_providers(self, providers: list[type[ServiceProvider]]) -> None:
         """
         Register the service providers.
 
         Parameters
         ----------
-        providers : list[type[ServiceProviderInterface]]
+        providers : list[type[ServiceProvider]]
             The service providers to register.
         """
         for provider in providers:
@@ -194,9 +195,32 @@ class Photobooth(PhotoboothInterface):
             self._register_dependencies(instance.dependencies)
             self._register_dependencies(instance.singletons, singleton=True)
 
-            # Register websocket routes
-            for route in instance.websocket_routes:
-                self.websocket.add_handler(*route)
+            # Register API routes
+            for route in instance.routes:
+                if route.method is not None and route.http_handler is not None:
+                    self.webserver.http.add_route(
+                        route.method, route.endpoint, route.http_handler, **route.kwargs
+                    )
+                elif route.is_websocket and route.websocket_handler is not None:
+                    self.webserver.websocket.add_handler(
+                        route.endpoint, route.websocket_handler
+                    )
+                elif route.cls is not None and route.cls_method_name is not None:
+                    if route.method is not None:
+                        self.webserver.http.add_route(
+                            route.method,
+                            route.endpoint,
+                            route.cls,
+                            route.cls_method_name,
+                            **route.kwargs,
+                        )
+                    elif route.is_websocket:
+                        self.webserver.websocket.add_handler(
+                            route.endpoint, route.cls, route.cls_method_name
+                        )
+
+            # Register websocket channels
+            self.webserver.websocket.add_channels(instance.channels)
 
             # Invoke provider register method
             instance.register()

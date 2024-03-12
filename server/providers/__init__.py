@@ -1,14 +1,14 @@
 """Module for managing service providers for the application."""
 
 from .app import AppServiceProvider
-from .interface import ServiceProviderInterface
+from .base import ServiceProvider
+from .routes import RoutesServiceProvider
 from .settings import SettingsServiceProvider
-from .websocket_routes import WebSocketRoutesServiceProvider
 
 DEFAULT_PROVIDERS = [
     AppServiceProvider,
     SettingsServiceProvider,
-    WebSocketRoutesServiceProvider,
+    RoutesServiceProvider,
 ]
 
-__all__ = ["ServiceProviderInterface", "DEFAULT_PROVIDERS"]
+__all__ = ["ServiceProvider", "DEFAULT_PROVIDERS"]

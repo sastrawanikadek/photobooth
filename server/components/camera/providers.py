@@ -1,12 +1,15 @@
-from server.providers import ServiceProviderInterface
+from server.providers import ServiceProvider
+from server.webserver import Route
 
 from .api_handlers import APIHandler
+from .constants import CHANNEL_CAMERA_CAPTURE_PREVIEW
 
 
-class WebSocketRoutesServiceProvider(ServiceProviderInterface):
-    """The WebSocket routes service provider."""
+class ComponentServiceProvider(ServiceProvider):
+    """The component service provider."""
 
-    websocket_routes = [
-        ("camera.capturePreview", APIHandler, "capture_preview"),
-        ("camera.capture", APIHandler, "capture"),
+    channels = [CHANNEL_CAMERA_CAPTURE_PREVIEW]
+
+    routes = [
+        Route.post("/api/v0/camera/capture", APIHandler, "capture"),
     ]

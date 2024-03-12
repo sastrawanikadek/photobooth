@@ -1,5 +1,7 @@
 import json
 
+from server.utils.supports.encoder import JSONEncoder
+
 
 def json_serialize(value: object) -> str | None:
     """
@@ -18,7 +20,7 @@ def json_serialize(value: object) -> str | None:
     if value is None or isinstance(value, str):
         return value
 
-    return json.dumps(value)
+    return json.dumps(value, cls=JSONEncoder)
 
 
 def json_deserialize(value: str | bytes | bytearray | None) -> object:

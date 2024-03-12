@@ -22,7 +22,7 @@ module.exports = {
         "eventbus",
         "injector",
         "utils",
-        "websocket",
+        "webserver",
         "database",
         "settings_manager",
         "camera",
