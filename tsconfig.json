@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "strict": true,
+    "isolatedModules": true,
+    "target": "ESNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./client/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./client/types"]
+  },
+  "include": [
+    "client/**/*.ts",
+    "client/**/*.tsx",
+    "client/**/*.d.ts",
+    "client/app.tsx",
+    "client/main.ts",
+    "client/preload.ts",
+    "client/renderer.tsx",
+    "client/routes.tsx",
+    "client/types.d.ts"
+  ]
+}

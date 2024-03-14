@@ -39,6 +39,13 @@ repos:
         args: [--fix]
         stages: [pre-commit]
 
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.56.0
+    hooks:
+      - id: eslint
+        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
+        types: [file]
+
   - repo: local
     hooks:
       - id: commitlint
@@ -51,3 +58,9 @@ repos:
         entry: scripts/append_issue_ref.sh
         language: script
         stages: [commit-msg]
+      - id: tsc
+        name: Typescript check
+        entry: npx tsc --noEmit
+        pass_filenames: false
+        language: node
+        stages: [pre-commit]

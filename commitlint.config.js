@@ -26,6 +26,7 @@ module.exports = {
         "database",
         "settings_manager",
         "camera",
+        "client",
       ],
     ],
   },
