@@ -1,6 +1,0 @@
-#! /bin/bash
-
-sudo chown -R vscode:vscode /var/run/docker.sock
-git config --global --add safe.directory $PWD
-
-source scripts/setup.sh

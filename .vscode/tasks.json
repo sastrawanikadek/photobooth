@@ -13,11 +13,38 @@
       "group": "build"
     },
     {
-      "label": "Start App",
+      "label": "Start Server",
       "command": [
         "[[ -d .venv ]] && ",
         "source .venv/bin/activate && ",
         "watchmedo auto-restart --pattern \"*.py\" --recursive --signal SIGTERM -- python3 -m server.main"
+      ],
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "group": "build"
+    },
+
+    {
+      "label": "Start Client",
+      "command": "yarn start",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "group": "build"
+    },
+    {
+      "label": "Migrate Database",
+      "command": [
+        "[[ -d .venv ]] && ",
+        "source .venv/bin/activate && ",
+        "alembic upgrade head"
       ],
       "type": "shell",
       "presentation": {
