@@ -8,9 +8,10 @@ import gphoto2 as gp
 import pendulum
 from typing_extensions import Self
 
+from server.components.camera.events import CameraDisconnectedEvent
 from server.utils.supports.collection import Collection
 
-from .exceptions import DeviceUSBNotFoundError, ModelNotFoundError
+from .exceptions import CameraError, DeviceUSBNotFoundError, ModelNotFoundError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
 from .widgets import CameraWidget, RadioWidget, TextWidget, ToggleWidget
 
@@ -246,12 +247,24 @@ class CameraDevice(CameraDeviceInterface):
             except gp.GPhoto2Error as e:
                 self._error_handler(e)
 
+    async def ping(self) -> bool:
+        """Check if the camera is still connected."""
+        async with self._lock:
+            try:
+                await asyncio.to_thread(self._camera.get_summary, self._context)
+                return True
+            except gp.GPhoto2Error:
+                return False
+
     def _error_handler(self, exception: gp.GPhoto2Error) -> None:
         """Handle errors from the camera."""
         if exception.code == gp.GP_ERROR_MODEL_NOT_FOUND:
             raise ModelNotFoundError("The specified camera model was not found.")
         elif exception.code == gp.GP_ERROR_IO_USB_FIND:
             raise DeviceUSBNotFoundError("The camera is not connected to USB port.")
+        elif exception.code in [gp.GP_ERROR, gp.GP_ERROR_IO, gp.GP_ERROR_CAMERA_ERROR]:
+            CameraDisconnectedEvent().dispatch()
+            raise CameraError("An error occurred while communicating with the camera.")
         else:
             raise exception
 

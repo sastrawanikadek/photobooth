@@ -66,6 +66,10 @@ class CameraDeviceInterface(ABC):
     async def close(self) -> None:
         """Close the connection to the camera."""
 
+    @abstractmethod
+    async def ping(self) -> bool:
+        """Check if the camera is still connected."""
+
 
 class CameraManagerInterface(ABC):
     """

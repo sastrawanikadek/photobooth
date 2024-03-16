@@ -26,6 +26,7 @@ class WebSocketExceptionHandler:
 
     def register(self) -> None:
         """Register exceptions to the handler."""
+        self.render(ValueErrorRenderer)
         self.render(ValidationErrorRenderer)
 
     def render(
@@ -88,6 +89,18 @@ class WebSocketExceptionHandler:
             )
 
         return response
+
+
+def ValueErrorRenderer(
+    exception: ValueError, _: web.WebSocketResponse, message: WebSocketIncomingMessage
+) -> WebSocketResponseMessage:
+    return WebSocketResponseMessage(
+        status="error",
+        command=message.command,
+        error=WebSocketErrorEnvelope(
+            message=str(exception),
+        ),
+    )
 
 
 def ValidationErrorRenderer(

@@ -21,6 +21,7 @@ from .constants import (
     SLUG,
 )
 from .events import CameraActiveEvent, CameraConnectedEvent, CameraDisconnectedEvent
+from .exceptions import CameraError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
 from .services import CameraManager
 from .widgets import RadioWidget, ToggleWidget
@@ -38,6 +39,20 @@ class Camera(ComponentInterface):
         settings_manager: SettingsManagerInterface,
         webserver: WebServerInterface,
     ) -> None:
+        """
+        Initializes the camera component.
+
+        Parameters
+        ----------
+        container : DependencyContainerInterface
+            The dependency container.
+        eventbus : EventBusInterface
+            The event bus.
+        settings_manager : SettingsManagerInterface
+            The settings manager.
+        webserver : WebServerInterface
+            The web server.
+        """
         self._camera_manager = CameraManager()
         self._eventbus = eventbus
         self._settings_manager = settings_manager
@@ -48,6 +63,9 @@ class Camera(ComponentInterface):
 
         # Register event listeners
         self._eventbus.add_listener(CameraActiveEvent, self._on_camera_active)
+        self._eventbus.add_listener(
+            CameraDisconnectedEvent, self._on_camera_disconnected
+        )
 
         asyncio.create_task(self._check_connectivity())
         asyncio.create_task(self._check_inactivity())
@@ -60,34 +78,57 @@ class Camera(ComponentInterface):
         """
         self._is_idle = False
 
+    def _on_camera_disconnected(self, _: CameraDisconnectedEvent) -> None:
+        """
+        Event Handler for when the camera is disconnected.
+
+        It reset the state of the camera and clear the settings.
+        """
+        self._camera_manager.camera = None
+        self._is_idle = False
+
+        self._settings_manager.clear(SLUG)
+        _LOGGER.info("Camera disconnected")
+
     async def _on_camera_connected(self, camera: CameraDeviceInterface) -> None:
         """
         Handler for when the camera is connected.
 
         It update the settings.
+
+        Parameters
+        ----------
+        camera : CameraDeviceInterface
+            The camera device.
         """
         await self._update_camera_settings(camera)
 
         CameraConnectedEvent(camera).dispatch()
 
-        asyncio.create_task(self._capture_preview())
+        asyncio.create_task(self._capture_preview(camera))
         _LOGGER.info("Camera connected")
 
     async def _on_camera_idle(self) -> None:
         """
         Handler for when the camera is idle.
 
-        It disconnects the camera, clear the settings and dispatches the CameraDisconnectedEvent.
+        It disconnects the camera,
+        clear the settings and dispatches the CameraDisconnectedEvent.
         """
         self._is_idle = True
         await self._camera_manager.disconnect()
 
         self._settings_manager.clear(SLUG)
 
-        self._eventbus.dispatch(CameraDisconnectedEvent())
+        CameraDisconnectedEvent().dispatch()
         _LOGGER.info("Camera disconnected due to inactivity")
 
     async def _check_connectivity(self) -> None:
+        """
+        Check the camera connectivity.
+
+        If the camera is not connected, it will try to connect.
+        """
         while True:
             if self._is_idle:
                 await asyncio.sleep(1)
@@ -102,6 +143,11 @@ class Camera(ComponentInterface):
             await asyncio.sleep(5)
 
     async def _check_inactivity(self) -> None:
+        """
+        Check the camera inactivity.
+
+        If the camera is idle for a certain duration, it will be disconnected.
+        """
         while True:
             now = pendulum.now()
             camera = self._camera_manager.camera
@@ -114,11 +160,19 @@ class Camera(ComponentInterface):
                 if camera.last_active.diff(now).in_seconds() >= idleTimeoutDuration:
                     await self._on_camera_idle()
 
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
 
     async def _update_camera_settings(self, camera: CameraDeviceInterface) -> None:
-        """Updates the camera settings."""
+        """
+        Updates the camera settings.
 
+        It gets the camera configuration and adds the settings to the settings manager.
+
+        Parameters
+        ----------
+        camera : CameraDeviceInterface
+            The camera device.
+        """
         config_widgets = await camera.get_config()
         setting_schemas: dict[str, list[SettingSchema]] = {SLUG: []}
 
@@ -145,20 +199,32 @@ class Camera(ComponentInterface):
 
         await self._settings_manager.add_schemas(setting_schemas)
 
-    async def _capture_preview(self) -> None:
-        """Capture a preview from the camera."""
+    async def _capture_preview(self, camera: CameraDeviceInterface) -> None:
+        """
+        Capture a preview from the camera.
 
+        Parameters
+        ----------
+        camera : CameraDeviceInterface
+            The camera device.
+        """
         while True:
-            if self._camera_manager.camera is None:
-                break
-
             if not self._webserver.websocket.has_subscribers(
                 CHANNEL_CAMERA_CAPTURE_PREVIEW
             ):
                 await asyncio.sleep(1)
                 continue
 
-            preview_bytes = await self._camera_manager.camera.capture_preview()
-            self._webserver.websocket.broadcast(
-                CHANNEL_CAMERA_CAPTURE_PREVIEW, preview_bytes.decode()
-            )
+            if self._is_idle:
+                CameraActiveEvent().dispatch()
+                await asyncio.sleep(1)
+                continue
+
+            try:
+                preview_bytes = await camera.capture_preview()
+            except CameraError:
+                break
+            else:
+                self._webserver.websocket.broadcast(
+                    CHANNEL_CAMERA_CAPTURE_PREVIEW, preview_bytes.decode()
+                )
