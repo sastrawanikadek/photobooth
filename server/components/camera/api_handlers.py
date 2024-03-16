@@ -5,13 +5,15 @@ from typing import Callable, Coroutine, TypeVar
 from uuid import uuid4
 
 import pendulum
+from aiohttp import web
 from typing_extensions import Self
 
-from server.components.camera.events import CameraActiveEvent
 from server.eventbus import EventBusInterface
 from server.utils.helpers.function import safe_invoke
-from server.websocket import WebSocketHandlerError
+from server.utils.supports.http_response import HTTPResponse
 
+from .dtos import CameraCaptureResponseDTO
+from .events import CameraActiveEvent
 from .exceptions import CameraError
 from .interfaces import CameraDeviceInterface, CameraManagerInterface
 
@@ -46,25 +48,24 @@ class APIHandler:
 
             while self._camera_manager.camera is None:
                 if retry >= max_retry:
-                    raise WebSocketHandlerError("Camera is not connected")
+                    raise CameraError("Camera is not connected")
 
                 await asyncio.sleep(1)
                 retry += 1
 
             self._camera = self._camera_manager.camera
 
-            try:
-                return await safe_invoke(func, self, *args, **kwargs)
-            except CameraError as e:
-                raise WebSocketHandlerError(str(e))
+            return await safe_invoke(func, self, *args, **kwargs)
 
         return wrapper
 
     @_camera_status_aware
-    async def capture(self) -> str:
+    async def capture(self) -> web.StreamResponse:
         filename = str(uuid4()) + ".jpg"
         image_bytes = await self._camera.capture_and_download(filename)
         self._last_active = pendulum.now()
         base64_bytes = base64.b64encode(image_bytes)
 
-        return base64_bytes.decode()
+        return HTTPResponse.json(
+            data=CameraCaptureResponseDTO(image=base64_bytes.decode())
+        )
