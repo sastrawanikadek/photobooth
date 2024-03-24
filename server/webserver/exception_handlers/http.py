@@ -1,9 +1,7 @@
 import inspect
-from http import HTTPStatus
 from typing import Callable, TypeVar, cast
 
 from aiohttp import web
-from pydantic import ValidationError
 
 from server.utils.helpers.inspect import has_same_signature
 from server.utils.supports.http_response import HTTPResponse
@@ -16,10 +14,6 @@ class HTTPExceptionHandler:
     """Exception handler for HTTP connection."""
 
     _renderers: dict[type[Exception], Handler] = {}
-
-    def register(self) -> None:
-        """Register exceptions to the handler."""
-        self.render(ValidationErrorRenderer)
 
     def render(
         self,
@@ -64,21 +58,3 @@ class HTTPExceptionHandler:
             response = HTTPResponse.error(message="Internal Server Error")
 
         return response
-
-
-def ValidationErrorRenderer(
-    exception: ValidationError,
-    _: web.Request,
-) -> web.StreamResponse:
-    errors: dict[str, list[str]] = {}
-
-    for error in exception.errors():
-        field = ".".join([str(v) for v in error["loc"]])
-        errors.setdefault(field, [])
-        errors[field].append(error["msg"])
-
-    return HTTPResponse.error(
-        message="Validation Error",
-        status=HTTPStatus.UNPROCESSABLE_ENTITY,
-        errors=errors,
-    )

@@ -18,7 +18,7 @@ class CameraError(Exception):
         self, _: web.WebSocketResponse, message: WebSocketIncomingMessage
     ) -> WebSocketResponseMessage:
         """Render the error to a WebSocket response."""
-        return WebSocketResponse.error(command=message.command, message=str(self))
+        return WebSocketResponse.error(message=str(self))
 
 
 class ModelNotFoundError(CameraError):

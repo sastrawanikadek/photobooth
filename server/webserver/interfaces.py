@@ -6,13 +6,16 @@ from pydantic import BaseModel
 
 from server.utils.supports.collection import Collection
 
+from .middlewares import WebSocketMiddlewareType
+from .models import WebSocketResponseMessage
+
 RouteMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
 WebSocketMessageData: TypeAlias = (
     str | dict[str, object] | list[dict[str, object]] | BaseModel | Collection | None
 )
 
 HTTPHandlerType = Callable[..., web.StreamResponse]
-WebSocketHandlerType = Callable[..., WebSocketMessageData]
+WebSocketHandlerType = Callable[..., WebSocketResponseMessage]
 
 
 class WebServerInterface(ABC):
@@ -149,6 +152,17 @@ class WebSocketComponentInterface(ABC):
             The arguments.
         **kwargs : object
             The keyword arguments.
+        """
+
+    @abstractmethod
+    def add_middleware(self, middleware: WebSocketMiddlewareType) -> None:
+        """
+        Add a middleware.
+
+        Parameters
+        ----------
+        middleware : WebSocketMiddlewareType
+            The middleware to add.
         """
 
     @abstractmethod

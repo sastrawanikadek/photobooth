@@ -80,3 +80,42 @@ def class_has_method(cls: type, method: str) -> bool:
         True if the class has the method, otherwise False.
     """
     return hasattr(cls, method) and callable(getattr(cls, method))
+
+
+def has_no_parameters(callable: Callable[..., object]) -> bool:
+    """
+    Check if the callable has no parameters.
+
+    Parameters
+    ----------
+    callable : callable
+        The callable to check.
+
+    Returns
+    -------
+    bool
+        True if the callable has no parameters, otherwise False.
+    """
+    return len(inspect.signature(callable).parameters) == 0
+
+
+def is_builtin_type(obj: object) -> bool:
+    """
+    Check if the object is a built-in type.
+
+    Parameters
+    ----------
+    obj : object
+        The object to check.
+
+    Returns
+    -------
+    bool
+        True if the object is a built-in type, otherwise False.
+    """
+    if inspect.isclass(obj):
+        return obj.__module__ == "builtins"
+    elif inspect.ismodule(obj) or callable(obj):
+        return False
+
+    return obj.__class__.__module__ == "builtins"

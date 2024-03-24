@@ -2,6 +2,7 @@ from aiohttp import web
 
 from ..dtos import WebSocketSubscribeRequestDTO, WebSocketUnsubscribeRequestDTO
 from ..interfaces import WebServerInterface
+from ..models import WebSocketResponseMessage
 
 
 class WebSocketAPIHandler:
@@ -10,10 +11,12 @@ class WebSocketAPIHandler:
 
     def subscribe(
         self, request: WebSocketSubscribeRequestDTO, connection: web.WebSocketResponse
-    ) -> None:
+    ) -> WebSocketResponseMessage:
         self._webserver.websocket.subscribe(request.channel, connection)
+        return WebSocketResponseMessage(status="success")
 
     def unsubscribe(
         self, request: WebSocketUnsubscribeRequestDTO, connection: web.WebSocketResponse
-    ) -> None:
+    ) -> WebSocketResponseMessage:
         self._webserver.websocket.unsubscribe(request.channel, connection)
+        return WebSocketResponseMessage(status="success")

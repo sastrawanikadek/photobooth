@@ -2,7 +2,6 @@ import inspect
 from typing import Callable, TypeVar, cast
 
 from aiohttp import web
-from pydantic import ValidationError
 
 from server.utils.helpers.inspect import has_same_signature
 
@@ -23,11 +22,6 @@ class WebSocketExceptionHandler:
     """Exception handler for WebSocket connection."""
 
     _renderers: dict[type[Exception], Handler] = {}
-
-    def register(self) -> None:
-        """Register exceptions to the handler."""
-        self.render(ValueErrorRenderer)
-        self.render(ValidationErrorRenderer)
 
     def render(
         self,
@@ -89,37 +83,3 @@ class WebSocketExceptionHandler:
             )
 
         return response
-
-
-def ValueErrorRenderer(
-    exception: ValueError, _: web.WebSocketResponse, message: WebSocketIncomingMessage
-) -> WebSocketResponseMessage:
-    return WebSocketResponseMessage(
-        status="error",
-        command=message.command,
-        error=WebSocketErrorEnvelope(
-            message=str(exception),
-        ),
-    )
-
-
-def ValidationErrorRenderer(
-    exception: ValidationError,
-    _: web.WebSocketResponse,
-    message: WebSocketIncomingMessage,
-) -> WebSocketResponseMessage:
-    errors: dict[str, list[str]] = {}
-
-    for error in exception.errors():
-        field = ".".join([str(v) for v in error["loc"]])
-        errors.setdefault(field, [])
-        errors[field].append(error["msg"])
-
-    return WebSocketResponseMessage(
-        status="error",
-        command=message.command,
-        error=WebSocketErrorEnvelope(
-            message="Validation Error",
-            errors=errors,
-        ),
-    )

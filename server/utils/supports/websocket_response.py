@@ -7,25 +7,27 @@ from server.webserver import (
 
 class WebSocketResponse:
     @staticmethod
-    def json(
-        command: str, data: WebSocketMessageData = None
-    ) -> WebSocketResponseMessage:
+    def json(data: WebSocketMessageData = None) -> WebSocketResponseMessage:
         """Return an success response."""
         return WebSocketResponseMessage(
             status="success",
-            command=command,
             data=data,
         )
 
     @staticmethod
+    def empty() -> WebSocketResponseMessage:
+        """Return an empty success response."""
+        return WebSocketResponseMessage(
+            status="success",
+        )
+
+    @staticmethod
     def error(
-        command: str,
         message: str,
         errors: dict[str, list[str]] = {},
     ) -> WebSocketResponseMessage:
         """Return an error response."""
         return WebSocketResponseMessage(
             status="error",
-            command=command,
             error=WebSocketErrorEnvelope(message=message, errors=errors),
         )
