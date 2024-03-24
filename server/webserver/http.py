@@ -7,7 +7,6 @@ from aiohttp import web
 from server.injector import DependencyInjectorInterface
 from server.utils.helpers.inspect import class_has_method
 
-from .exception_handlers import HTTPExceptionHandler
 from .interfaces import HTTPComponentInterface, HTTPHandlerType, RouteMethod
 from .utils import bind_request_model, is_http_handler
 
@@ -18,8 +17,8 @@ class HTTPComponent(HTTPComponentInterface):
     def __init__(
         self,
         app: web.Application,
+        *,
         injector: DependencyInjectorInterface,
-        exception_handler: HTTPExceptionHandler,
     ) -> None:
         """
         Initialize the component.
@@ -30,12 +29,9 @@ class HTTPComponent(HTTPComponentInterface):
             The web application.
         injector : DependencyInjectorInterface
             The dependency injector.
-        exception_handler : HTTPExceptionHandler
-            The exception handler.
         """
         self._app = app
         self._injector = injector
-        self._exception_handler = exception_handler
 
     def add_route(
         self, method: RouteMethod, path: str, *args: object, **kwargs: object
@@ -209,28 +205,21 @@ class HTTPComponent(HTTPComponentInterface):
                     instance: object = self._injector.inject_constructor(cls)
                     handler = getattr(instance, method)
 
-                try:
-                    if request.method == "GET":
-                        payload = dict(request.query)
-                    else:
-                        try:
-                            request_json = await request.json()
-                            payload = (
-                                request_json if isinstance(request_json, dict) else {}
-                            )
-                        except json.JSONDecodeError:
-                            payload = {}
+                if request.method == "GET":
+                    payload = dict(request.query)
+                else:
+                    try:
+                        request_json = await request.json()
+                        payload = request_json if isinstance(request_json, dict) else {}
+                    except json.JSONDecodeError:
+                        payload = {}
 
-                    bind_request_model(container, handler, payload)
+                bind_request_model(container, handler, payload)
 
-                    response = await self._injector.call_with_injection(handler)
+                response = await self._injector.call_with_injection(handler)
 
-                    if not isinstance(response, web.StreamResponse):
-                        raise ValueError(
-                            "Response must be instance of web.StreamResponse"
-                        )
-                except Exception as exc:
-                    response = self._exception_handler.handle(exc, request)
+                if not isinstance(response, web.StreamResponse):
+                    raise ValueError("Response must be instance of web.StreamResponse")
 
                 return response
 

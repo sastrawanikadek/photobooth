@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from typing import Callable, Iterator, cast
 
 from server.utils.helpers.function import safe_invoke
+from server.utils.helpers.inspect import has_no_parameters, is_builtin_type
 
 from .dependency_container import DependencyContainer
 from .interfaces import (
@@ -86,43 +87,27 @@ class DependencyInjector(DependencyInjectorInterface):
         args: list[object] = []
 
         for parameter in signature.parameters.values():
-            resolved = False
-
             if parameter.annotation == parameter.empty:
                 continue
 
-            for container in self.containers:
-                dependency = container.get_singleton(parameter.annotation)
-
-                if dependency is not None:
-                    args.append(dependency)
-                    resolved = True
-                    break
-
-                implementation = container.get_bind(parameter.annotation)
-
-                if implementation is None:
-                    continue
-
-                try:
-                    if callable(implementation):
-                        dependency_args = self.resolve_dependencies(implementation)
-                    else:
-                        dependency_args = self.resolve_dependencies(
-                            implementation.__init__
-                        )
-                except ValueError:
-                    break
-                else:
-                    dependency = implementation(*dependency_args)
-                    args.append(dependency)
-                    resolved = True
-                    break
-
-            if not resolved:
+            if is_builtin_type(parameter.annotation):
                 raise ValueError(
                     f'Could not resolve dependency for "{parameter.annotation}"'
                 )
+
+            dependency = self._resolve_dependency(parameter.annotation)
+
+            if dependency is not None:
+                args.append(dependency)
+                continue
+
+            if not has_no_parameters(parameter.annotation):
+                raise ValueError(
+                    f'Could not resolve dependency for "{parameter.annotation}"'
+                )
+
+            # Instantiating the dependency if it is a class and has no parameters.
+            args.append(parameter.annotation())
 
         return args
 
@@ -206,3 +191,38 @@ class DependencyInjector(DependencyInjectorInterface):
         """
         args = self.resolve_dependencies(func)
         return cast(_RT, await safe_invoke(func, *args))
+
+    def _resolve_dependency(self, annotation: type) -> object | None:
+        """
+        Resolve a dependency by looking through the dependency containers.
+
+        Parameters
+        ----------
+        annotation : type
+            The annotation to resolve.
+
+        Returns
+        -------
+        object | None
+            The resolved dependency or None if it could not be resolved.
+        """
+        for container in self.containers:
+            dependency = container.get_singleton(annotation)
+
+            if dependency is not None:
+                return dependency
+
+            implementation = container.get_bind(annotation)
+
+            if implementation is None:
+                continue
+
+            try:
+                dependency_args = self.resolve_dependencies(implementation)
+            except ValueError:
+                break
+            else:
+                dependency = implementation(*dependency_args)
+                return dependency
+
+        return None

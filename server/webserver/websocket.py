@@ -1,6 +1,8 @@
 import asyncio
 import inspect
 import logging
+from functools import partial, update_wrapper
+from typing import cast
 
 from aiohttp import web
 
@@ -8,16 +10,16 @@ from server.injector import DependencyInjectorInterface
 from server.utils.helpers.inspect import class_has_method
 from server.utils.helpers.module import get_calling_module
 
-from .exception_handlers import WebSocketExceptionHandler
 from .interfaces import (
     WebSocketComponentInterface,
     WebSocketHandlerType,
-    WebSocketMessageData,
 )
+from .middlewares import WebSocketMiddlewareHandler, WebSocketMiddlewareType
 from .models import (
     WebSocketBroadcastMessage,
     WebSocketErrorEnvelope,
     WebSocketIncomingMessage,
+    WebSocketMessageData,
     WebSocketResponseMessage,
 )
 from .utils import bind_request_model, is_websocket_handler
@@ -39,12 +41,14 @@ class WebSocketComponent(WebSocketComponentInterface):
 
     _handlers: dict[str, tuple[type, str] | WebSocketHandlerType] = {}
     _subscribed_clients: dict[str, list[web.WebSocketResponse]] = {}
+    _middlewares: list[WebSocketMiddlewareType] = []
 
     def __init__(
         self,
         app: web.Application,
+        *,
         injector: DependencyInjectorInterface,
-        exception_handler: WebSocketExceptionHandler,
+        middlewares: list[WebSocketMiddlewareType] = [],
     ) -> None:
         """
         Initialize the component.
@@ -55,14 +59,14 @@ class WebSocketComponent(WebSocketComponentInterface):
             The web application.
         injector : DependencyInjectorInterface
             The dependency injector.
-        exception_handler : WebSocketExceptionHandler
-            The exception handler.
+        middlewares : list[WebSocketMiddlewareType]
+            The middlewares to use.
         """
         self._app = app
         self._injector = injector
-        self._exception_handler = exception_handler
+        self._middlewares = middlewares
 
-        self._app.add_routes([web.get("/ws", self._websocket_handler)])
+        self._app.add_routes([web.get("/", self._websocket_handler)])
 
     def add_handler(self, *args: object, **kwargs: object) -> None:
         """
@@ -115,6 +119,17 @@ class WebSocketComponent(WebSocketComponentInterface):
             )
 
         raise TypeError("Invalid arguments")
+
+    def add_middleware(self, middleware: WebSocketMiddlewareType) -> None:
+        """
+        Add a middleware.
+
+        Parameters
+        ----------
+        middleware : WebSocketMiddlewareType
+            The middleware to add.
+        """
+        self._middlewares.append(middleware)
 
     def add_channel(self, channel: str) -> None:
         """
@@ -375,7 +390,19 @@ class WebSocketComponent(WebSocketComponentInterface):
                     )
                     continue
 
-                await self._run_handler(websocket, incoming_message)
+                if incoming_message.command not in self._handlers:
+                    await websocket.send_str(
+                        WebSocketResponseMessage(
+                            status="error",
+                            command=incoming_message.command,
+                            error=WebSocketErrorEnvelope(message="Unknown command."),
+                        ).to_json()
+                    )
+                    return
+
+                handler = self._prepare_middlewares()
+                response = await handler(websocket, incoming_message)
+                await websocket.send_str(response.to_json())
             elif message.type == web.WSMsgType.ERROR:
                 _LOGGER.error(
                     "WebSocket connection closed with exception: %s",
@@ -389,11 +416,38 @@ class WebSocketComponent(WebSocketComponentInterface):
 
         return websocket
 
-    async def _run_handler(
+    def _prepare_middlewares(self) -> WebSocketMiddlewareHandler:
+        """
+        Create a stack of middlewares with the handler at the end.
+
+        Returns
+        -------
+        WebSocketMiddlewareHandler
+            The middleware handler.
+        """
+        if not self._middlewares:
+            return self._run_command_handler
+
+        middlewares = list(reversed(self._middlewares))
+
+        wrapped_handler = update_wrapper(
+            partial(middlewares[0], handler=self._run_command_handler),
+            self._run_command_handler,
+        )
+
+        for middleware in middlewares[1:]:
+            wrapped_handler = update_wrapper(
+                partial(middleware, handler=wrapped_handler),
+                wrapped_handler,
+            )
+
+        return wrapped_handler
+
+    async def _run_command_handler(
         self,
         websocket: web.WebSocketResponse,
         incoming_message: WebSocketIncomingMessage,
-    ) -> None:
+    ) -> WebSocketResponseMessage:
         """
         Run the handler for a command.
 
@@ -403,47 +457,43 @@ class WebSocketComponent(WebSocketComponentInterface):
             The WebSocket connection.
         incoming_message : WebSocketIncomingMessage
             The incoming message.
+
+        Returns
+        -------
+        WebSocketResponseMessage
+            The response message.
         """
-        if incoming_message.command not in self._handlers:
-            await websocket.send_str(
-                WebSocketResponseMessage(
-                    status="error",
-                    command=incoming_message.command,
-                    error=WebSocketErrorEnvelope(message="Unknown command."),
-                ).to_json()
-            )
-            return
-
-        handler_value = self._handlers[incoming_message.command]
-
         with self._injector.add_temporary_container() as container:
             container.singleton(web.WebSocketResponse, websocket)
 
-            if callable(handler_value):
-                handler = handler_value
-            else:
-                cls, method = handler_value
-                instance: object = self._injector.inject_constructor(cls)
-                handler = getattr(instance, method)
+            handler = self._get_command_handler(incoming_message.command)
 
-            try:
-                payload = (
-                    incoming_message.payload
-                    if isinstance(incoming_message.payload, dict)
-                    else {}
-                )
-                bind_request_model(container, handler, payload)
+            bind_request_model(container, handler, incoming_message.payload)
 
-                response = await self._injector.call_with_injection(handler)
-            except Exception as exc:
-                error_response = self._exception_handler.handle(
-                    exc, websocket, incoming_message
-                )
-                await websocket.send_str(error_response.to_json())
-                return
+            response = await self._injector.call_with_injection(handler)
+            response.command = incoming_message.command
 
-        await websocket.send_str(
-            WebSocketResponseMessage(
-                status="success", command=incoming_message.command, data=response
-            ).to_json()
-        )
+        return response
+
+    def _get_command_handler(self, command: str) -> WebSocketHandlerType:
+        """
+        Get the handler for a command.
+
+        Parameters
+        ----------
+        command : str
+            The command to get the handler for.
+
+        Returns
+        -------
+        WebSocketHandlerType
+            The handler for the command.
+        """
+        handler_value = self._handlers[command]
+
+        if callable(handler_value):
+            return handler_value
+
+        cls, method = handler_value
+        instance: object = self._injector.inject_constructor(cls)
+        return cast(WebSocketHandlerType, getattr(instance, method))

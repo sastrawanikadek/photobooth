@@ -1,13 +1,16 @@
 import json
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import pendulum
 from pydantic import BaseModel, Field
 from pydantic_extra_types.pendulum_dt import DateTime
 
+from server.utils.supports.collection import Collection
 from server.utils.supports.encoder import JSONEncoder
 
-from .interfaces import WebSocketMessageData
+WebSocketMessageData: TypeAlias = (
+    str | dict[str, object] | list[dict[str, object]] | BaseModel | Collection | None
+)
 
 
 class WebSocketIncomingMessage(BaseModel):
@@ -18,14 +21,14 @@ class WebSocketIncomingMessage(BaseModel):
     ----------
     command : str
         The command to execute.
-    payload : WebSocketMessageData
+    payload : dict[str, object]
         The payload for the command.
     timestamp : DateTime
         The timestamp of the message.
     """
 
     command: str
-    payload: WebSocketMessageData = None
+    payload: dict[str, object] = {}
     timestamp: DateTime = Field(default_factory=pendulum.now, init_var=False)
 
 
@@ -64,7 +67,7 @@ class WebSocketResponseMessage(BaseModel):
     """
 
     status: Literal["success", "error"]
-    command: str
+    command: str = Field(default="", init_var=False)
     data: WebSocketMessageData = None
     error: WebSocketErrorEnvelope | None = None
     timestamp: DateTime = Field(default_factory=pendulum.now, init_var=False)

@@ -6,8 +6,9 @@ from pydantic import BaseModel
 
 from server.injector import DependencyContainerInterface
 from server.utils.helpers.inspect import get_first_match_signature
-from server.utils.supports.collection import Collection
-from server.webserver import HTTPHandlerType, WebSocketHandlerType
+
+from .interfaces import HTTPHandlerType, WebSocketHandlerType
+from .models import WebSocketResponseMessage
 
 
 def bind_request_model(
@@ -56,18 +57,8 @@ def is_websocket_handler(handler: object) -> TypeGuard[WebSocketHandlerType]:
     signature = inspect.signature(handler)
     return_type = signature.return_annotation
 
-    return (
-        return_type == str
-        or return_type == dict[str, object]
-        or return_type == list[dict[str, object]]
-        or (
-            inspect.isclass(return_type)
-            and (
-                issubclass(return_type, BaseModel)
-                or issubclass(return_type, Collection)
-            )
-        )
-        or return_type is None
+    return inspect.isclass(return_type) and issubclass(
+        return_type, WebSocketResponseMessage
     )
 
 

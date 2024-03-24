@@ -1,13 +1,19 @@
 import logging
 
-from aiohttp import web
+from aiohttp import typedefs, web
 
 from server.injector import DependencyInjectorInterface
 
 from .constants import HOST, PORT
-from .exception_handlers import HTTPExceptionHandler, WebSocketExceptionHandler
 from .http import HTTPComponent
 from .interfaces import WebServerInterface
+from .middlewares import (
+    DEFAULT_HTTP_MIDDLEWARES,
+    DEFAULT_WEBSOCKET_MIDDLEWARES,
+    HTTPMiddlewareInterface,
+    WebSocketMiddlewareInterface,
+    WebSocketMiddlewareType,
+)
 from .websocket import WebSocketComponent
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,13 +23,18 @@ class WebServer(WebServerInterface):
     """A web server that provides HTTP and WebSocket communication."""
 
     def __init__(self, injector: DependencyInjectorInterface) -> None:
-        self._app = web.Application()
-        self._http_exception_handler = HTTPExceptionHandler()
-        self._websocket_exception_handler = WebSocketExceptionHandler()
+        self._injector = injector
+        self._app = web.Application(
+            middlewares=self._register_http_middlewares(DEFAULT_HTTP_MIDDLEWARES)
+        )
 
-        self.http = HTTPComponent(self._app, injector, self._http_exception_handler)
+        self.http = HTTPComponent(self._app, injector=injector)
         self.websocket = WebSocketComponent(
-            self._app, injector, self._websocket_exception_handler
+            self._app,
+            injector=injector,
+            middlewares=self._register_websocket_middlewares(
+                DEFAULT_WEBSOCKET_MIDDLEWARES
+            ),
         )
 
     async def start(self) -> None:
@@ -34,8 +45,44 @@ class WebServer(WebServerInterface):
         site = web.TCPSite(runner, HOST, PORT)
         await site.start()
 
-        # Register the exception handlers
-        self._http_exception_handler.register()
-        self._websocket_exception_handler.register()
-
         _LOGGER.info(f"Web server started on {site.name}")
+
+    def _register_http_middlewares(
+        self, middlewares: list[type[HTTPMiddlewareInterface] | HTTPMiddlewareInterface]
+    ) -> list[typedefs.Middleware]:
+        """Register HTTP middlewares."""
+        return [
+            self._register_http_middleware(middleware) for middleware in middlewares
+        ]
+
+    def _register_http_middleware(
+        self, middleware: type[HTTPMiddlewareInterface] | HTTPMiddlewareInterface
+    ) -> typedefs.Middleware:
+        """Register an HTTP middleware."""
+        if isinstance(middleware, HTTPMiddlewareInterface):
+            instance = middleware
+        else:
+            instance = self._injector.inject_constructor(middleware)
+
+        return web.middleware(
+            lambda request, handler: instance.handle(request, handler)
+        )
+
+    def _register_websocket_middlewares(
+        self,
+        middlewares: list[
+            type[WebSocketMiddlewareInterface] | WebSocketMiddlewareInterface
+        ],
+    ) -> list[WebSocketMiddlewareType]:
+        """Register WebSocket middlewares."""
+        middleware_handlers: list[WebSocketMiddlewareType] = []
+
+        for middleware in middlewares:
+            if isinstance(middleware, WebSocketMiddlewareInterface):
+                instance = middleware
+            else:
+                instance = self._injector.inject_constructor(middleware)
+
+            middleware_handlers.append(instance.handle)
+
+        return middleware_handlers
