@@ -27,6 +27,7 @@ module.exports = {
         "settings_manager",
         "camera",
         "client",
+        "storage_manager",
       ],
     ],
   },

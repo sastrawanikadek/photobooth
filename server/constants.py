@@ -15,3 +15,15 @@ SETTING_STORAGE_PROVIDER = "storage_provider"
 
 SETTING_STORAGE_PROVIDER_API_KEY = "storage_api_key"
 """The API key for the storage provider."""
+
+STORAGES_PATH = Path("server", "storages")
+"""The path to the directory containing the file storages."""
+
+APP_STORAGE_PATH = STORAGES_PATH / "app"
+"""The path to the directory containing the application files."""
+
+LOGS_STORAGE_PATH = STORAGES_PATH / "logs"
+"""The path to the directory containing the logs."""
+
+PUBLIC_STORAGE_PATH = APP_STORAGE_PATH / "public"
+"""The path to the directory containing the public files."""
