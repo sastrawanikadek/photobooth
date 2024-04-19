@@ -1,5 +1,5 @@
-from server.managers.component import ComponentManifest
-from server.managers.settings import SettingSchema
+from server.managers.components.models import ComponentManifest
+from server.managers.settings.models import SettingSchema
 
 from .constants import SETTING_IDLE_TIMEOUT_DURATION
 from .providers import ComponentServiceProvider
@@ -15,6 +15,7 @@ __MANIFEST__ = ComponentManifest(
             key=SETTING_IDLE_TIMEOUT_DURATION,
             title="Idle Timeout Duration",
             description="The camera's duration of inactivity in seconds before it turns off.",
+            group="Camera",
             display="text",
             type="integer",
             default_value=300,

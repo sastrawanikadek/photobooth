@@ -2,7 +2,8 @@ import logging
 
 from aiohttp import typedefs, web
 
-from server.injector import DependencyInjectorInterface
+from server.constants import PUBLIC_STORAGE_PATH
+from server.dependency_injection.interfaces import DependencyInjectorInterface
 
 from .constants import HOST, PORT
 from .http import HTTPComponent
@@ -22,11 +23,14 @@ _LOGGER = logging.getLogger(__name__)
 class WebServer(WebServerInterface):
     """A web server that provides HTTP and WebSocket communication."""
 
+    _site: web.TCPSite | None = None
+
     def __init__(self, injector: DependencyInjectorInterface) -> None:
         self._injector = injector
         self._app = web.Application(
             middlewares=self._register_http_middlewares(DEFAULT_HTTP_MIDDLEWARES)
         )
+        self._runner = web.AppRunner(self._app)
 
         self.http = HTTPComponent(self._app, injector=injector)
         self.websocket = WebSocketComponent(
@@ -39,13 +43,25 @@ class WebServer(WebServerInterface):
 
     async def start(self) -> None:
         """Start the web server."""
-        runner = web.AppRunner(self._app)
-        await runner.setup()
+        self.http.add_static_route(
+            "/static/public", PUBLIC_STORAGE_PATH, name="public", append_version=True
+        )
 
-        site = web.TCPSite(runner, HOST, PORT)
-        await site.start()
+        await self._runner.setup()
 
-        _LOGGER.info(f"Web server started on {site.name}")
+        self._site = web.TCPSite(self._runner, HOST, PORT)
+        await self._site.start()
+
+        _LOGGER.info(f"Web server started on {self._site.name}")
+
+    @property
+    def address(self) -> str:
+        """Get the address of the web server."""
+        if self._site is None:
+            raise RuntimeError("Web server is not running")
+
+        sitename: str = self._site.name
+        return sitename
 
     def _register_http_middlewares(
         self, middlewares: list[type[HTTPMiddlewareInterface] | HTTPMiddlewareInterface]

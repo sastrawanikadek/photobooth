@@ -4,16 +4,13 @@ from typing import cast
 
 import pendulum
 
-from server.eventbus import EventBusInterface
-from server.injector import DependencyContainerInterface
-from server.managers.component import ComponentInterface
-from server.managers.settings import (
-    Display,
-    SettingSchema,
-    SettingsManagerInterface,
-    ValueType,
-)
-from server.webserver import WebServerInterface
+from server.dependency_injection.interfaces import DependencyContainerInterface
+from server.eventbus.interfaces import EventBusInterface
+from server.events import AppReadyEvent
+from server.managers.components.base import Component
+from server.managers.settings.events import SettingUpdatedEvent
+from server.managers.settings.models import Display, SettingSchema, ValueType
+from server.webserver.interfaces import WebServerInterface
 
 from .constants import (
     CHANNEL_CAMERA_CAPTURE_PREVIEW,
@@ -29,14 +26,14 @@ from .widgets import RadioWidget, ToggleWidget
 _LOGGER = logging.getLogger(__name__)
 
 
-class Camera(ComponentInterface):
+class Camera(Component):
     _is_idle = False
+    _camera_config_schema_keys: list[str] = []
 
     def __init__(
         self,
         container: DependencyContainerInterface,
         eventbus: EventBusInterface,
-        settings_manager: SettingsManagerInterface,
         webserver: WebServerInterface,
     ) -> None:
         """
@@ -48,25 +45,32 @@ class Camera(ComponentInterface):
             The dependency container.
         eventbus : EventBusInterface
             The event bus.
-        settings_manager : SettingsManagerInterface
-            The settings manager.
         webserver : WebServerInterface
             The web server.
         """
+        super().__init__(SLUG)
+
         self._camera_manager = CameraManager()
         self._eventbus = eventbus
-        self._settings_manager = settings_manager
         self._webserver = webserver
 
         # Register the camera manager as a dependency
         container.singleton(CameraManagerInterface, self._camera_manager)
 
         # Register event listeners
+        self._eventbus.add_listener(AppReadyEvent, self._on_app_ready)
         self._eventbus.add_listener(CameraActiveEvent, self._on_camera_active)
         self._eventbus.add_listener(
             CameraDisconnectedEvent, self._on_camera_disconnected
         )
+        self._eventbus.add_listener(SettingUpdatedEvent, self._on_setting_updated)
 
+    def _on_app_ready(self, _: AppReadyEvent) -> None:
+        """
+        Event handler for when the app is ready.
+
+        It tries to connect to the camera.
+        """
         asyncio.create_task(self._check_connectivity())
         asyncio.create_task(self._check_inactivity())
 
@@ -87,8 +91,33 @@ class Camera(ComponentInterface):
         self._camera_manager.camera = None
         self._is_idle = False
 
-        self._settings_manager.clear(SLUG)
+        # Remove the camera settings
+        self.remove_setting_schemas(self._camera_config_schema_keys)
+
         _LOGGER.info("Camera disconnected")
+
+    async def _on_setting_updated(self, event: SettingUpdatedEvent) -> None:
+        """
+        Event handler for when a setting is updated.
+
+        It sets the configuration on the camera.
+
+        Parameters
+        ----------
+        event : SettingUpdatedEvent
+            The event.
+        """
+        if not self._camera_manager.camera or not event.data.key.startswith(
+            self._camera_manager.camera.canonical_name
+        ):
+            return
+
+        await self._camera_manager.camera.set_single_config(
+            event.data.key.removeprefix(
+                f"{self._camera_manager.camera.canonical_name}_"
+            ),
+            event.data.value,
+        )
 
     async def _on_camera_connected(self, camera: CameraDeviceInterface) -> None:
         """
@@ -102,6 +131,7 @@ class Camera(ComponentInterface):
             The camera device.
         """
         await self._update_camera_settings(camera)
+        await self._apply_settings(camera)
 
         CameraConnectedEvent(camera).dispatch()
 
@@ -118,9 +148,6 @@ class Camera(ComponentInterface):
         self._is_idle = True
         await self._camera_manager.disconnect()
 
-        self._settings_manager.clear(SLUG)
-
-        CameraDisconnectedEvent().dispatch()
         _LOGGER.info("Camera disconnected due to inactivity")
 
     async def _check_connectivity(self) -> None:
@@ -134,11 +161,12 @@ class Camera(ComponentInterface):
                 await asyncio.sleep(1)
                 continue
 
-            if self._camera_manager.camera is None:
-                camera = self._camera_manager.connect().camera
-
-                if camera is not None:
+            if not self._camera_manager.camera:
+                if camera := self._camera_manager.connect():
                     await self._on_camera_connected(camera)
+            else:
+                if not await self._camera_manager.camera.ping():
+                    CameraDisconnectedEvent().dispatch()
 
             await asyncio.sleep(5)
 
@@ -153,8 +181,8 @@ class Camera(ComponentInterface):
             camera = self._camera_manager.camera
 
             if camera is not None:
-                idleTimeoutDuration = self._settings_manager.get_value(
-                    SLUG, SETTING_IDLE_TIMEOUT_DURATION, 300
+                idleTimeoutDuration = self.get_setting_value(
+                    SETTING_IDLE_TIMEOUT_DURATION, 300
                 )
 
                 if camera.last_active.diff(now).in_seconds() >= idleTimeoutDuration:
@@ -174,9 +202,10 @@ class Camera(ComponentInterface):
             The camera device.
         """
         config_widgets = await camera.get_config()
-        setting_schemas: dict[str, list[SettingSchema]] = {SLUG: []}
+        setting_schemas: list[SettingSchema] = []
 
         for widget in config_widgets:
+            setting_key = f"{camera.canonical_name}_{widget.name}"
             setting_display = (
                 "select"
                 if isinstance(widget, RadioWidget) and len(widget.options) > 3
@@ -186,18 +215,44 @@ class Camera(ComponentInterface):
             setting_options = (
                 widget.options if isinstance(widget, RadioWidget) else None
             )
-            setting_schemas[SLUG].append(
+
+            setting_schemas.append(
                 SettingSchema(
-                    key=widget.name,
+                    key=setting_key,
                     title=widget.label,
+                    group="Camera",
                     display=cast(Display, setting_display),
                     type=cast(ValueType, setting_type),
                     default_value=widget.value,
                     options=setting_options,
                 )
             )
+            self._camera_config_schema_keys.append(setting_key)
 
-        await self._settings_manager.add_schemas(setting_schemas)
+        await self.add_setting_schemas(setting_schemas)
+
+    async def _apply_settings(self, camera: CameraDeviceInterface) -> None:
+        """
+        Apply the settings to the camera.
+
+        It sets the configuration on the camera.
+
+        Parameters
+        ----------
+        camera : CameraDeviceInterface
+            The camera device.
+        """
+        configs = {}
+
+        for key in self._camera_config_schema_keys:
+            value = self.get_setting_value(key)
+
+            if value is None:
+                continue
+
+            configs[key.removeprefix(f"{camera.canonical_name}_")] = value
+
+        await camera.set_configs(configs)
 
     async def _capture_preview(self, camera: CameraDeviceInterface) -> None:
         """

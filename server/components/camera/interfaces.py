@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from pendulum import DateTime
-from typing_extensions import Self
 
 from server.utils.supports.collection import Collection
 
@@ -19,6 +18,16 @@ class CameraDeviceInterface(ABC):
     """
 
     last_active: DateTime
+
+    @property
+    @abstractmethod
+    def model(self) -> str:
+        """The model of the camera."""
+
+    @property
+    @abstractmethod
+    def canonical_name(self) -> str:
+        """The canonical name of the camera model."""
 
     @abstractmethod
     async def capture(self) -> bytes:
@@ -63,6 +72,30 @@ class CameraDeviceInterface(ABC):
         """Get the configuration provided by the camera."""
 
     @abstractmethod
+    async def set_single_config(self, name: str, value: object) -> None:
+        """
+        Set a single configuration value on the camera.
+
+        Parameters
+        ----------
+        name : str
+            The name of the configuration.
+        value : object
+            The value to set.
+        """
+
+    @abstractmethod
+    async def set_configs(self, configs: dict[str, object]) -> None:
+        """
+        Set multiple configuration values on the camera.
+
+        Parameters
+        ----------
+        configs : dict[str, object]
+            The configuration values to set.
+        """
+
+    @abstractmethod
     async def close(self) -> None:
         """Close the connection to the camera."""
 
@@ -98,7 +131,7 @@ class CameraManagerInterface(ABC):
         """
 
     @abstractmethod
-    def connect(self, address: str | None = None) -> Self:
+    def connect(self, address: str | None = None) -> CameraDeviceInterface | None:
         """
         Connect to a first camera or a camera with a specific address.
 
@@ -109,8 +142,8 @@ class CameraManagerInterface(ABC):
 
         Returns
         -------
-        Self
-            The camera manager.
+        CameraDeviceInterface | None
+            The connected camera device or None if no camera is found.
         """
 
     @abstractmethod

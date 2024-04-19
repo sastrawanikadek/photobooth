@@ -1,13 +1,13 @@
-from server.eventbus import Event
+from server.eventbus.event import NoDataEvent
 
 
-class AppInitializedEvent(Event):
+class AppInitializedEvent(NoDataEvent):
     """Event that is fired when the app is initialized."""
 
 
-class AppStartupEvent(Event):
+class AppStartupEvent(NoDataEvent):
     """Event that is fired when the app is starting up."""
 
 
-class AppReadyEvent(Event):
+class AppReadyEvent(NoDataEvent):
     """Event that is fired when the app is ready to serve requests."""

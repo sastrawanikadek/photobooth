@@ -16,15 +16,5 @@
     },
     "typeRoots": ["./node_modules/@types", "./client/types"]
   },
-  "include": [
-    "client/**/*.ts",
-    "client/**/*.tsx",
-    "client/**/*.d.ts",
-    "client/app.tsx",
-    "client/main.ts",
-    "client/preload.ts",
-    "client/renderer.tsx",
-    "client/routes.tsx",
-    "client/types.d.ts"
-  ]
+  "include": ["client/**/*.ts", "client/**/*.tsx", "client/**/*.d.ts"]
 }

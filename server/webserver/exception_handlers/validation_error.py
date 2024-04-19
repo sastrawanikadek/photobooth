@@ -12,7 +12,7 @@ from ..models import (
 )
 
 
-def HTTPValidationErrorRenderer(
+def http_validation_error_renderer(
     exception: ValidationError,
     _: web.Request,
 ) -> web.StreamResponse:
@@ -30,7 +30,7 @@ def HTTPValidationErrorRenderer(
     )
 
 
-def WebSocketValidationErrorRenderer(
+def websocket_validation_error_renderer(
     exception: ValidationError,
     _: web.WebSocketResponse,
     message: WebSocketIncomingMessage,

@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
 
-from server.eventbus import EventBusInterface
-from server.injector import DependencyContainerInterface, DependencyInjectorInterface
-from server.managers.component import ComponentManagerInterface
-from server.managers.settings import SettingsManagerInterface
-from server.webserver import WebServerInterface
+from server.dependency_injection.interfaces import (
+    DependencyContainerInterface,
+    DependencyInjectorInterface,
+)
+from server.eventbus.interfaces import EventBusInterface
+from server.managers.components.interfaces import ComponentManagerInterface
+from server.managers.settings.interfaces import SettingsManagerInterface
+from server.managers.storages.interfaces import StorageManagerInterface
+from server.webserver.interfaces import WebServerInterface
 
 
 class PhotoboothInterface(ABC):
@@ -25,6 +29,8 @@ class PhotoboothInterface(ABC):
         The settings manager.
     webserver : WebServerInterface
         The webserver.
+    storage_manager : StorageManagerInterface
+        The storage manager.
     """
 
     component_manager: ComponentManagerInterface
@@ -33,6 +39,7 @@ class PhotoboothInterface(ABC):
     eventbus: EventBusInterface
     settings_manager: SettingsManagerInterface
     webserver: WebServerInterface
+    storage_manager: StorageManagerInterface
 
     @abstractmethod
     def initialize(self) -> None:

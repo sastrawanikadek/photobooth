@@ -10,6 +10,8 @@ _RT = TypeVar("_RT")
 
 
 class Collection(Generic[_T]):
+    """A collection class that provides a set of methods to work with collections."""
+
     def __init__(self, iterable: Iterable[_T]) -> None:
         """Initialize the collection."""
         self._iterable = list(iterable)

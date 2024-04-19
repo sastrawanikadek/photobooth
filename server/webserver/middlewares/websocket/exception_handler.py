@@ -2,8 +2,9 @@ from aiohttp import web
 
 from ...exception_handlers import (
     WebSocketExceptionHandler,
-    WebSocketValidationErrorRenderer,
-    WebSocketValueErrorRenderer,
+    websocket_command_not_found_error_renderer,
+    websocket_validation_error_renderer,
+    websocket_value_error_renderer,
 )
 from ...models import WebSocketIncomingMessage, WebSocketResponseMessage
 from ..interfaces import WebSocketMiddlewareHandler, WebSocketMiddlewareInterface
@@ -16,8 +17,9 @@ class ExceptionHandlerMiddleware(WebSocketMiddlewareInterface):
         """Initialize the middleware."""
         self.handler = handler
 
-        self.handler.render(WebSocketValidationErrorRenderer)
-        self.handler.render(WebSocketValueErrorRenderer)
+        self.handler.render(websocket_validation_error_renderer)
+        self.handler.render(websocket_value_error_renderer)
+        self.handler.render(websocket_command_not_found_error_renderer)
 
     async def handle(
         self,

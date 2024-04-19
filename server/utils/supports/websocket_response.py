@@ -1,4 +1,4 @@
-from server.webserver import (
+from server.webserver.models import (
     WebSocketErrorEnvelope,
     WebSocketMessageData,
     WebSocketResponseMessage,

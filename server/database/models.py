@@ -1,3 +1,3 @@
-from server.managers.settings import BackupSetting, Setting
+from server.managers.settings.models import Setting
 
-__all__ = ["Setting", "BackupSetting"]
+__all__ = ["Setting"]

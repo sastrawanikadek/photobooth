@@ -23,7 +23,7 @@ def json_serialize(value: object) -> str | None:
     return json.dumps(value, cls=JSONEncoder)
 
 
-def json_deserialize(value: str | bytes | bytearray | None) -> object:
+def json_deserialize(value: object) -> object:
     """
     Deserialize a JSON string to a value.
 
@@ -37,8 +37,12 @@ def json_deserialize(value: str | bytes | bytearray | None) -> object:
     object
         The deserialized value.
     """
-    if value is None:
-        return None
+    if value is None or (
+        not isinstance(value, str)
+        and not isinstance(value, bytes)
+        and not isinstance(value, bytearray)
+    ):
+        return value
 
     try:
         return json.loads(value)

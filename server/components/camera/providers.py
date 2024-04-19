@@ -1,5 +1,5 @@
 from server.providers import ServiceProvider
-from server.webserver import Route
+from server.webserver.route import Route
 
 from .api_handlers import APIHandler
 from .constants import CHANNEL_CAMERA_CAPTURE_PREVIEW

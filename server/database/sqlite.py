@@ -20,13 +20,13 @@ class SQLiteDatabase(DatabaseInterface):
         The connection string of the database.
     _engine : AsyncEngine | None
         The database engine.
-    _session : async_sessionmaker[AsyncSession] | None
+    _session_factory : async_sessionmaker[AsyncSession] | None
         The database session.
     """
 
     _connection_string: str
     _engine: AsyncEngine | None = None
-    _session: async_sessionmaker[AsyncSession] | None = None
+    _session_factory: async_sessionmaker[AsyncSession] | None = None
 
     def __init__(self, connection_string: str) -> None:
         """
@@ -49,16 +49,20 @@ class SQLiteDatabase(DatabaseInterface):
         return self._engine
 
     @property
-    def session(self) -> async_sessionmaker[AsyncSession]:
-        """Get the database session."""
-        if self._session is None:
-            self._session = async_sessionmaker(self.engine, expire_on_commit=False)
-        return self._session
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        """Get the database session factory."""
+        if self._session_factory is None:
+            self._session_factory = async_sessionmaker(
+                self.engine, expire_on_commit=False
+            )
+        return self._session_factory
 
     async def close(self) -> None:
         """Close the database connection and release resources."""
-        await self.session().close_all()
-        await self.engine.dispose()
+        if self._session_factory is not None:
+            await self._session_factory().close_all()
+            self._session_factory = None
 
-        self._session = None
-        self._engine = None
+        if self._engine is not None:
+            await self._engine.dispose()
+            self._engine = None

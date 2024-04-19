@@ -1,30 +1,14 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
-from server.injector import DependencyInjectorInterface
+from .models import ComponentManifest
 
-from .model import ComponentManifest
-
-
-class ComponentInterface(ABC):
-    """Interface for all components."""
+if TYPE_CHECKING:
+    from .base import Component
 
 
 class ComponentManagerInterface(ABC):
     """Interface for component manager implementations."""
-
-    @abstractmethod
-    def __init__(self, path: Path, injector: DependencyInjectorInterface) -> None:
-        """
-        Initialize the component manager.
-
-        Parameters
-        ----------
-        path : str
-            The path to the directory containing the components.
-        injector : DependencyInjectorInterface
-            The dependency injector to use for dependency injection.
-        """
 
     @abstractmethod
     def load_preinstalled(self) -> None:
@@ -34,7 +18,7 @@ class ComponentManagerInterface(ABC):
         """
 
     @abstractmethod
-    def get(self, slug: str) -> ComponentInterface | None:
+    def get(self, slug: str) -> Optional["Component"]:
         """
         Get a component by its slug.
 
@@ -45,7 +29,7 @@ class ComponentManagerInterface(ABC):
 
         Returns
         -------
-        ComponentInterface | None
+        Component | None
             The component with the given slug or None if not installed.
         """
 

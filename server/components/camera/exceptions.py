@@ -4,7 +4,7 @@ from aiohttp import web
 
 from server.utils.supports.http_response import HTTPResponse
 from server.utils.supports.websocket_response import WebSocketResponse
-from server.webserver import WebSocketIncomingMessage, WebSocketResponseMessage
+from server.webserver.models import WebSocketIncomingMessage, WebSocketResponseMessage
 
 
 class CameraError(Exception):

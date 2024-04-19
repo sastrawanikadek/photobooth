@@ -1,4 +1,5 @@
 import inspect
+import logging
 from typing import Callable, TypeVar, cast
 
 from aiohttp import web
@@ -8,6 +9,7 @@ from server.utils.supports.http_response import HTTPResponse
 
 ExceptionType = TypeVar("ExceptionType", bound=Exception)
 Handler = Callable[[Exception, web.Request], web.StreamResponse | None]
+_LOGGER = logging.getLogger(__name__)
 
 
 class HTTPExceptionHandler:
@@ -55,6 +57,7 @@ class HTTPExceptionHandler:
         response = None if renderer is None else renderer(exception, request)
 
         if response is None:
+            _LOGGER.error("Unhandled exception: %s", exception)
             response = HTTPResponse.error(message="Internal Server Error")
 
         return response

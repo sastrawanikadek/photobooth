@@ -2,17 +2,31 @@ import asyncio
 import logging
 
 from server.constants import COMPONENTS_PATH, DATABASE_CONNECTION_STRING
-from server.database import DatabaseInterface, SQLiteDatabase
-from server.eventbus import EventBus, EventBusInterface
-from server.injector import (
-    DependencyContainer,
+from server.database.interfaces import DatabaseInterface
+from server.database.sqlite import SQLiteDatabase
+from server.dependency_injection.dependency_container import DependencyContainer
+from server.dependency_injection.dependency_injector import DependencyInjector
+from server.dependency_injection.interfaces import (
     DependencyContainerInterface,
-    DependencyInjector,
     DependencyInjectorInterface,
 )
-from server.managers.component import ComponentManager, ComponentManagerInterface
-from server.managers.settings import SettingsManager, SettingsManagerInterface
-from server.webserver import WebServer, WebServerInterface
+from server.eventbus.bus import EventBus
+from server.eventbus.interfaces import EventBusInterface
+from server.managers.components.interfaces import ComponentManagerInterface
+from server.managers.components.manager import ComponentManager
+from server.managers.settings.interfaces import SettingsManagerInterface
+from server.managers.settings.manager import SettingsManager
+from server.managers.storages.constants import (
+    DEFAULT_PROVIDERS as DEFAULT_STORAGE_PROVIDERS,
+)
+from server.managers.storages.interfaces import (
+    StorageManagerInterface,
+    StorageProviderInterface,
+)
+from server.managers.storages.manager import StorageManager
+from server.utils.pydantic_fields.string import SlugStr
+from server.webserver.interfaces import WebServerInterface
+from server.webserver.server import WebServer
 
 from .events import AppInitializedEvent, AppReadyEvent, AppStartupEvent
 from .interfaces import PhotoboothInterface
@@ -38,10 +52,13 @@ class Photobooth(PhotoboothInterface):
         The eventbus.
     settings_manager : SettingsManagerInterface
         The settings manager.
-
+    webserver : WebServerInterface
+        The webserver.
+    storage_manager : StorageManagerInterface
+        The storage manager.
     """
 
-    _providers: list[ServiceProvider] = []
+    _providers: dict[str, list[ServiceProvider]] = {}
 
     def __init__(self) -> None:
         self.eventbus = EventBus()
@@ -60,7 +77,7 @@ class Photobooth(PhotoboothInterface):
         Initialize the main components of the photobooth.
         """
         self._register_core_dependencies()
-        self._register_providers(DEFAULT_PROVIDERS)
+        self._register_providers("system", DEFAULT_PROVIDERS)
 
         self.settings_manager = self.dependency_injector.inject_constructor(
             SettingsManager
@@ -68,6 +85,12 @@ class Photobooth(PhotoboothInterface):
         self.dependency_container.singleton(
             SettingsManagerInterface, self.settings_manager
         )
+
+        self.storage_manager = StorageManager(self.settings_manager)
+        self.dependency_container.singleton(
+            StorageManagerInterface, self.storage_manager
+        )
+        self._register_storage_providers(DEFAULT_STORAGE_PROVIDERS)
 
         _LOGGER.info("App initialized")
         self.eventbus.dispatch(AppInitializedEvent())
@@ -89,22 +112,15 @@ class Photobooth(PhotoboothInterface):
 
         Load all the settings and start necessary services.
         """
-        self._load_settings()
-
-        # Invoke the boot method of the service providers
-        injected_boot_methods = [
-            self.dependency_injector.call_with_injection(provider.boot)
-            for provider in self._providers
-        ]
-        await asyncio.gather(*injected_boot_methods)
-
+        await self._load_settings()
+        await self._boot_providers()
         await self.settings_manager.sync()
 
         # Start the webserver
-        asyncio.create_task(self.webserver.start())
+        await self.webserver.start()
 
         # Set the app proxy
-        set_photobooth(PhotoboothApp(self))
+        set_photobooth(PhotoboothApp(self))  # type: ignore[abstract]
 
         _LOGGER.info("App ready")
         self.eventbus.dispatch(AppReadyEvent())
@@ -176,12 +192,17 @@ class Photobooth(PhotoboothInterface):
             else:
                 self.dependency_container.bind(interface, implementation)
 
-    def _register_providers(self, providers: list[type[ServiceProvider]]) -> None:
+    def _register_providers(
+        self, source: SlugStr, providers: list[type[ServiceProvider]]
+    ) -> None:
         """
         Register the service providers.
 
         Parameters
         ----------
+        source : SlugStr
+            The source of the service providers, it can be either a component slug
+            or "system".
         providers : list[type[ServiceProvider]]
             The service providers to register.
         """
@@ -225,7 +246,17 @@ class Photobooth(PhotoboothInterface):
             # Invoke provider register method
             instance.register()
 
-            self._providers.append(instance)
+            self._providers.setdefault(source, [])
+            self._providers[source].append(instance)
+
+    async def _boot_providers(self) -> None:
+        """Invoke the boot method of the service providers."""
+        injected_boot_methods = [
+            self.dependency_injector.call_with_injection(provider.boot)
+            for providers in self._providers.values()
+            for provider in providers
+        ]
+        await asyncio.gather(*injected_boot_methods)
 
     def _load_preinstalled_components(self) -> None:
         """Load all the preinstalled components."""
@@ -235,14 +266,12 @@ class Photobooth(PhotoboothInterface):
         manifests = self.component_manager.get_all_manifests()
 
         # Register components providers
-        providers = [
-            provider for manifest in manifests for provider in manifest.providers
-        ]
-        self._register_providers(providers)
+        for manifest in manifests:
+            self._register_providers(manifest.slug, manifest.providers)
 
         _LOGGER.info("Preinstalled components loaded")
 
-    def _load_settings(self) -> None:
+    async def _load_settings(self) -> None:
         """
         Load the settings from different sources to
         the settings manager.
@@ -250,13 +279,31 @@ class Photobooth(PhotoboothInterface):
         _LOGGER.info("Loading settings")
 
         manifests = self.component_manager.get_all_manifests()
-        schemas = {manifest.slug: manifest.settings for manifest in manifests}
+        coroutines = []
 
-        for provider in self._providers:
-            schemas.update(provider.setting_schemas)
+        for manifest in manifests:
+            coroutines.append(
+                self.settings_manager.add_schemas(
+                    manifest.slug, manifest.settings, sync=False
+                )
+            )
 
-        asyncio.create_task(
-            self.settings_manager.add_schemas(schemas, schema_only=True)
-        )
+        for source, providers in self._providers.items():
+            for provider in providers:
+                coroutines.append(
+                    self.settings_manager.add_schemas(
+                        source, provider.setting_schemas, sync=False
+                    )
+                )
+
+        await asyncio.gather(*coroutines)
 
         _LOGGER.info("Settings loaded")
+
+    def _register_storage_providers(
+        self, providers: dict[str, type[StorageProviderInterface]]
+    ) -> None:
+        """Register the storage providers."""
+        for name, provider_cls in providers.items():
+            provider = self.dependency_injector.inject_constructor(provider_cls)
+            self.storage_manager.add_provider(name, provider)

@@ -24,8 +24,8 @@ class DatabaseInterface(ABC):
 
     @property
     @abstractmethod
-    def session(self) -> async_sessionmaker[AsyncSession]:
-        """Get the database session."""
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        """Get the database session factory."""
 
     @abstractmethod
     async def close(self) -> None:

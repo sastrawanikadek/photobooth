@@ -1,24 +1,25 @@
 import logging
-from typing import cast
+from typing import Generic, TypeVar, cast
 
 import pendulum
 
 from server.utils.helpers.serialization import json_serialize
-from server.webserver import WebSocketMessageData
+from server.webserver.models import WebSocketMessageData
 
 _LOGGER = logging.getLogger(__name__)
+_T = TypeVar("_T")
 
 
-class Event:
+class Event(Generic[_T]):
     """Base class for events."""
 
-    def __init__(self, data: object | None = None) -> None:
+    def __init__(self, data: _T) -> None:
         """
         Initialize the event.
 
         Parameters
         ----------
-        data : object | None
+        data : object
             The data associated with the event.
         """
         self._data = data
@@ -30,7 +31,7 @@ class Event:
         return self.__class__.__name__
 
     @property
-    def data(self) -> object:
+    def data(self) -> _T:
         """The data of the event."""
         return self._data
 
@@ -64,3 +65,10 @@ class Event:
 
     def __repr__(self) -> str:
         return f"<{self.name} data={self.data} timestamp={self.timestamp}>"
+
+
+class NoDataEvent(Event[None]):
+    """Event with no data."""
+
+    def __init__(self) -> None:
+        super().__init__(None)

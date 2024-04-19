@@ -7,7 +7,7 @@ from ..models import (
 )
 
 
-def WebSocketValueErrorRenderer(
+def websocket_value_error_renderer(
     exception: ValueError, _: web.WebSocketResponse, message: WebSocketIncomingMessage
 ) -> WebSocketResponseMessage:
     return WebSocketResponseMessage(

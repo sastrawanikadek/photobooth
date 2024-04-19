@@ -2,7 +2,11 @@ from typing import overload
 
 from typing_extensions import Self
 
-from server.webserver import HTTPHandlerType, RouteMethod, WebSocketHandlerType
+from server.webserver.interfaces import (
+    HTTPHandlerType,
+    RouteMethod,
+    WebSocketHandlerType,
+)
 
 
 class Route:
