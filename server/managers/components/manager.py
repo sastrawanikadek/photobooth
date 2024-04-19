@@ -2,11 +2,12 @@ import logging
 from pathlib import Path
 from typing import cast
 
-from server.injector import DependencyInjectorInterface
+from server.dependency_injection.interfaces import DependencyInjectorInterface
 from server.utils.helpers.module import get_module_class, import_module_by_path
 
-from .interfaces import ComponentInterface, ComponentManagerInterface
-from .model import ComponentManifest
+from .base import Component
+from .interfaces import ComponentManagerInterface
+from .models import ComponentManifest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class ComponentManager(ComponentManagerInterface):
 
     Attributes
     ----------
-    _components : dict[str, ComponentInterface]
+    _components : dict[str, Component]
         The components managed by the manager.
     _components_data : dict[str, dict[str, object]]
         The data of the components managed by the manager.
@@ -29,7 +30,7 @@ class ComponentManager(ComponentManagerInterface):
         The dependency injector to use for dependency injection.
     """
 
-    _components: dict[str, ComponentInterface]
+    _components: dict[str, Component]
     _components_data: dict[str, dict[str, object]]
     _manifests: dict[str, ComponentManifest]
     _path: Path
@@ -85,7 +86,7 @@ class ComponentManager(ComponentManagerInterface):
 
     def _load_component(
         self, component_path: Path, manifest: ComponentManifest
-    ) -> ComponentInterface | None:
+    ) -> Component | None:
         """
         Load a component.
 
@@ -98,7 +99,7 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        ComponentInterface | None
+        Component | None
             The component.
         """
         module = import_module_by_path(component_path / "component")
@@ -106,14 +107,12 @@ class ComponentManager(ComponentManagerInterface):
         if module is None:
             return None
 
-        component_cls = get_module_class(module, manifest.name, ComponentInterface)
+        component_cls = get_module_class(module, manifest.name, Component)
 
         if component_cls is None:
             return None
 
-        return cast(
-            ComponentInterface, self._injector.inject_constructor(component_cls)
-        )
+        return cast(Component, self._injector.inject_constructor(component_cls))
 
     def load_preinstalled(self) -> None:
         """
@@ -153,7 +152,7 @@ class ComponentManager(ComponentManagerInterface):
 
             _LOGGER.info("Component %s loaded", manifest.display_name)
 
-    def get(self, slug: str) -> ComponentInterface | None:
+    def get(self, slug: str) -> Component | None:
         """
         Get a component by its slug.
 
@@ -164,7 +163,7 @@ class ComponentManager(ComponentManagerInterface):
 
         Returns
         -------
-        ComponentInterface | None
+        Component | None
             The component with the given slug or None if not installed.
         """
         return self._components.get(slug)

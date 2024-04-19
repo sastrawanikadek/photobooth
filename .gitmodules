@@ -1,4 +1,0 @@
-[submodule "components"]
-	path = client/modules/components
-	url = https://github.com/parisudha/web-components
-	branch = main

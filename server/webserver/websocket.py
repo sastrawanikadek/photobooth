@@ -6,10 +6,11 @@ from typing import cast
 
 from aiohttp import web
 
-from server.injector import DependencyInjectorInterface
+from server.dependency_injection.interfaces import DependencyInjectorInterface
 from server.utils.helpers.inspect import class_has_method
 from server.utils.helpers.module import get_calling_module
 
+from .exceptions import WebSocketCommandNotFoundError
 from .interfaces import (
     WebSocketComponentInterface,
     WebSocketHandlerType,
@@ -171,8 +172,7 @@ class WebSocketComponent(WebSocketComponentInterface):
         channel : str
             The channel to remove.
         """
-        if channel in self._subscribed_clients:
-            del self._subscribed_clients[channel]
+        self._subscribed_clients.pop(channel, None)
 
     def subscribe(self, channel: str, websocket: web.WebSocketResponse) -> None:
         """
@@ -390,16 +390,6 @@ class WebSocketComponent(WebSocketComponentInterface):
                     )
                     continue
 
-                if incoming_message.command not in self._handlers:
-                    await websocket.send_str(
-                        WebSocketResponseMessage(
-                            status="error",
-                            command=incoming_message.command,
-                            error=WebSocketErrorEnvelope(message="Unknown command."),
-                        ).to_json()
-                    )
-                    return
-
                 handler = self._prepare_middlewares()
                 response = await handler(websocket, incoming_message)
                 await websocket.send_str(response.to_json())
@@ -463,6 +453,9 @@ class WebSocketComponent(WebSocketComponentInterface):
         WebSocketResponseMessage
             The response message.
         """
+        if incoming_message.command not in self._handlers:
+            raise WebSocketCommandNotFoundError("Unknown command")
+
         with self._injector.add_temporary_container() as container:
             container.singleton(web.WebSocketResponse, websocket)
 

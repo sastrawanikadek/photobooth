@@ -43,7 +43,7 @@ class CameraManager(CameraManagerInterface):
         """
         return Collection(gp.Camera.autodetect())
 
-    def connect(self, address: str | None = None) -> Self:
+    def connect(self, address: str | None = None) -> CameraDeviceInterface | None:
         """
         Connect to a first camera or a camera with a specific address.
 
@@ -54,14 +54,14 @@ class CameraManager(CameraManagerInterface):
 
         Returns
         -------
-        Self
-            The camera manager.
+        CameraDeviceInterface | None
+            The connected camera device or None if no camera is found.
         """
         detected_cameras = self.auto_detect()
 
         if detected_cameras.is_empty():
             _LOGGER.debug("No cameras detected")
-            return self
+            return None
 
         camera_info = detected_cameras.first(
             lambda args: address is None
@@ -69,10 +69,10 @@ class CameraManager(CameraManagerInterface):
         )
 
         if camera_info is None:
-            return self
+            return None
 
-        name, addr = camera_info
-        _LOGGER.debug("Connecting to camera %s at %s", name, addr)
+        model, addr = camera_info
+        _LOGGER.debug("Connecting to camera %s at %s", model, addr)
 
         gp_camera = gp.Camera()
         gp_context = gp.Context()
@@ -86,14 +86,14 @@ class CameraManager(CameraManagerInterface):
         # Load all the camera abilities and set it to the camera
         abilities_list = gp.CameraAbilitiesList()
         abilities_list.load()
-        idx = abilities_list.lookup_model(name)
+        idx = abilities_list.lookup_model(model)
         gp_camera.set_abilities(abilities_list[idx])
 
         # Initialize connection to the camera
         gp_camera.init(gp_context)
 
-        self.camera = CameraDevice(gp_camera, gp_context)
-        return self
+        self.camera = CameraDevice(model, gp_camera, gp_context)
+        return self.camera
 
     async def disconnect(self) -> None:
         """Disconnect the camera."""
@@ -126,9 +126,21 @@ class CameraDevice(CameraDeviceInterface):
     last_active = pendulum.now()
     _lock = asyncio.Lock()
 
-    def __init__(self, camera: gp.Camera, context: gp.Context) -> None:
+    def __init__(self, model: str, camera: gp.Camera, context: gp.Context) -> None:
+        self._model = model
+        self._canonical_name = self._model.replace(" ", "_").lower()
         self._camera = camera
         self._context = context
+
+    @property
+    def model(self) -> str:
+        """The model of the camera."""
+        return self._model
+
+    @property
+    def canonical_name(self) -> str:
+        """The canonical name of the camera model."""
+        return self._canonical_name
 
     def _camera_activity(  # type: ignore
         func: Callable[..., Coroutine[None, None, _DecoratedReturn]]
@@ -233,11 +245,53 @@ class CameraDevice(CameraDeviceInterface):
         async with self._lock:
             try:
                 config = await asyncio.to_thread(self._camera.get_config, self._context)
-                widgets = self._get_widgets(config)
+                widgets = await self._get_widgets(config)
             except gp.GPhoto2Error as e:
                 self._error_handler(e)
 
             return widgets
+
+    @_camera_activity
+    async def set_single_config(self, name: str, value: object) -> None:
+        """
+        Set a single configuration value on the camera.
+
+        Parameters
+        ----------
+        name : str
+            The name of the configuration.
+        value : object
+            The value to set.
+        """
+        async with self._lock:
+            try:
+                widget = await asyncio.to_thread(self._camera.get_single_config, name)
+                await asyncio.to_thread(widget.set_value, value)
+                await asyncio.to_thread(self._camera.set_single_config, name, widget)
+            except gp.GPhoto2Error as e:
+                self._error_handler(e)
+
+    @_camera_activity
+    async def set_configs(self, configs: dict[str, object]) -> None:
+        """
+        Set multiple configuration values on the camera.
+
+        Parameters
+        ----------
+        configs : dict[str, object]
+            The configuration values to set.
+        """
+        async with self._lock:
+            try:
+                config = await asyncio.to_thread(self._camera.get_config, self._context)
+
+                for name, value in configs.items():
+                    widget = await asyncio.to_thread(config.get_child_by_name, name)
+                    await asyncio.to_thread(widget.set_value, value)
+
+                await asyncio.to_thread(self._camera.set_config, config, self._context)
+            except gp.GPhoto2Error as e:
+                self._error_handler(e)
 
     async def close(self) -> None:
         """Close the connection to the camera."""
@@ -268,7 +322,7 @@ class CameraDevice(CameraDeviceInterface):
         else:
             raise exception
 
-    def _get_widgets(
+    async def _get_widgets(
         self, config: gp.GP_WIDGET_WINDOW | gp.GP_WIDGET_SECTION
     ) -> list[CameraWidget]:
         """Get the widgets from the camera configuration."""
@@ -281,7 +335,7 @@ class CameraDevice(CameraDeviceInterface):
 
         for child in config.get_children():
             if child.get_type() == gp.GP_WIDGET_SECTION:
-                children.extend(self._get_widgets(child))
+                children.extend(await self._get_widgets(child))
                 continue
 
             if child.get_type() in excluded_widgets or child.get_readonly():
@@ -300,12 +354,19 @@ class CameraDevice(CameraDeviceInterface):
             )
 
             if child.get_type() == gp.GP_WIDGET_RADIO:
+                widget_options = list(child.get_choices())
+                widget_value = (
+                    widget_value
+                    if widget_value in widget_options
+                    else widget_options[0]
+                )
+
                 widget = RadioWidget(
                     id=widget_id,
                     name=widget_name,
                     label=widget_label,
                     value=widget_value,
-                    options=list(child.get_choices()),
+                    options=widget_options,
                 )
             elif child.get_type() == gp.GP_WIDGET_TOGGLE:
                 widget = ToggleWidget(

@@ -1,7 +1,8 @@
-from server.eventbus import Event, EventBusInterface, Listener
-from server.injector import DependencyContainerInterface
-from server.managers.settings import SettingSchema
-from server.webserver import Route
+from server.dependency_injection.interfaces import DependencyContainerInterface
+from server.eventbus.event import Event
+from server.eventbus.interfaces import EventBusInterface, Listener
+from server.managers.settings.models import SettingSchema
+from server.webserver.route import Route
 
 
 class ServiceProvider:
@@ -33,11 +34,8 @@ class ServiceProvider:
     reused for each request.
     """
 
-    setting_schemas: dict[str, list[SettingSchema]] = {}
-    """
-    The setting schemas that the service provider provides, where the key is
-    the setting source and the value is the list of setting schemas.
-    """
+    setting_schemas: list[SettingSchema] = []
+    """The setting schemas that the service provider provides."""
 
     event_listeners: dict[type[Event], list[Listener]] = {}
     """

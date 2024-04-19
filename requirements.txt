@@ -4,6 +4,6 @@ colorlog==6.7.0
 pendulum==3.0.0
 pydantic-extra-types==2.6.0
 SQLAlchemy[asyncio]==2.0.25
-sqlmodel==0.0.14
+sqlmodel==0.0.16
 uvloop==0.19.0
 websockets==12.0

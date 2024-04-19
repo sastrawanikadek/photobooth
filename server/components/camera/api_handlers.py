@@ -8,7 +8,7 @@ import pendulum
 from aiohttp import web
 from typing_extensions import Self
 
-from server.eventbus import EventBusInterface
+from server.eventbus.interfaces import EventBusInterface
 from server.utils.helpers.function import safe_invoke
 from server.utils.supports.http_response import HTTPResponse
 

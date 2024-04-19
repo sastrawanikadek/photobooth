@@ -64,7 +64,9 @@ class DependencyInjector(DependencyInjectorInterface):
         finally:
             self.containers.remove(container)
 
-    def resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
+    def _resolve(
+        self, func: Callable[..., object], named_deps: dict[str, object]
+    ) -> list[object]:
         """
         Resolve the dependencies for a function.
 
@@ -72,6 +74,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ----------
         func : callable
             The function to resolve dependencies for.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -86,8 +90,14 @@ class DependencyInjector(DependencyInjectorInterface):
         signature = inspect.signature(func)
         args: list[object] = []
 
-        for parameter in signature.parameters.values():
+        for name, parameter in signature.parameters.items():
             if parameter.annotation == parameter.empty:
+                continue
+
+            if name in named_deps and issubclass(
+                type(named_deps[name]), parameter.annotation
+            ):
+                args.append(named_deps[name])
                 continue
 
             if is_builtin_type(parameter.annotation):
@@ -95,7 +105,7 @@ class DependencyInjector(DependencyInjectorInterface):
                     f'Could not resolve dependency for "{parameter.annotation}"'
                 )
 
-            dependency = self._resolve_dependency(parameter.annotation)
+            dependency = self._resolve_dependency(parameter.annotation, named_deps)
 
             if dependency is not None:
                 args.append(dependency)
@@ -111,7 +121,9 @@ class DependencyInjector(DependencyInjectorInterface):
 
         return args
 
-    def inject_constructor(self, cls: type[_CT]) -> _CT:
+    def inject_constructor(
+        self, cls: type[_CT], named_deps: dict[str, object] = {}
+    ) -> _CT:
         """
         Inject dependencies into a class using the constructor.
 
@@ -119,6 +131,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ----------
         cls : type
             The class to inject dependencies into.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -151,11 +165,20 @@ class DependencyInjector(DependencyInjectorInterface):
         if not inspect.isclass(cls):
             raise TypeError(f'"{cls}" is not a class')
 
-        args = self.resolve_dependencies(cls.__init__)
+        # Return the instance if it is already in the container.
+        for container in self.containers:
+            instance = container.get_singleton(cls)
+
+            if instance is not None:
+                return cast(_CT, instance)
+
+        args = self._resolve(cls.__init__, named_deps)
         instance = cls(*args)
         return cast(_CT, instance)
 
-    async def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+    async def call_with_injection(
+        self, func: Callable[..., _RT], named_deps: dict[str, object] = {}
+    ) -> _RT:
         """
         Call a function with dependency injection.
 
@@ -163,6 +186,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ----------
         func : callable
             The function to call.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -189,10 +214,12 @@ class DependencyInjector(DependencyInjectorInterface):
         ...     await injector.call_with_injection(test)
         <__main__.Implementation object at 0x7f5d6f9b6f10>
         """
-        args = self.resolve_dependencies(func)
+        args = self._resolve(func, named_deps)
         return cast(_RT, await safe_invoke(func, *args))
 
-    def _resolve_dependency(self, annotation: type) -> object | None:
+    def _resolve_dependency(
+        self, annotation: type, named_deps: dict[str, object]
+    ) -> object | None:
         """
         Resolve a dependency by looking through the dependency containers.
 
@@ -200,6 +227,8 @@ class DependencyInjector(DependencyInjectorInterface):
         ----------
         annotation : type
             The annotation to resolve.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -218,7 +247,7 @@ class DependencyInjector(DependencyInjectorInterface):
                 continue
 
             try:
-                dependency_args = self.resolve_dependencies(implementation)
+                dependency_args = self._resolve(implementation, named_deps)
             except ValueError:
                 break
             else:

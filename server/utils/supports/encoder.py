@@ -1,4 +1,5 @@
 import json
+from uuid import UUID
 
 import pendulum
 from pydantic import BaseModel
@@ -14,5 +15,8 @@ class JSONEncoder(json.JSONEncoder):
 
         if isinstance(o, pendulum.DateTime):
             return o.to_iso8601_string()
+
+        if isinstance(o, UUID):
+            return str(o)
 
         return super().default(o)

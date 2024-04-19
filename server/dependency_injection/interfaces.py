@@ -42,23 +42,9 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
-    def resolve_dependencies(self, func: Callable[..., object]) -> list[object]:
-        """
-        Resolve the dependencies for a function.
-
-        Parameters
-        ----------
-        func : callable
-            The function to resolve dependencies for.
-
-        Returns
-        -------
-        list[object]
-            The resolved dependencies.
-        """
-
-    @abstractmethod
-    def inject_constructor(self, cls: type[_CT]) -> _CT:
+    def inject_constructor(
+        self, cls: type[_CT], named_deps: dict[str, object] = {}
+    ) -> _CT:
         """
         Inject dependencies into a class.
 
@@ -66,6 +52,8 @@ class DependencyInjectorInterface(ABC):
         ----------
         cls : type
             The class to inject dependencies into.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -74,7 +62,9 @@ class DependencyInjectorInterface(ABC):
         """
 
     @abstractmethod
-    async def call_with_injection(self, func: Callable[..., _RT]) -> _RT:
+    async def call_with_injection(
+        self, func: Callable[..., _RT], named_deps: dict[str, object] = {}
+    ) -> _RT:
         """
         Call a function with dependency injection.
 
@@ -82,6 +72,8 @@ class DependencyInjectorInterface(ABC):
         ----------
         func : callable
             The function to call.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------

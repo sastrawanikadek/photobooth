@@ -4,7 +4,7 @@ from typing import Callable, TypeGuard
 from aiohttp import web
 from pydantic import BaseModel
 
-from server.injector import DependencyContainerInterface
+from server.dependency_injection.interfaces import DependencyContainerInterface
 from server.utils.helpers.inspect import get_first_match_signature
 
 from .interfaces import HTTPHandlerType, WebSocketHandlerType

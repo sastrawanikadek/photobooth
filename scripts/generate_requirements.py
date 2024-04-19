@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from server.managers.component import ComponentManifest
+from server.managers.components.models import ComponentManifest
 from server.utils.helpers.module import import_module_by_path
 
 COMPONENTS_PATH = Path("server", "components")

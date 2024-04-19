@@ -1,6 +1,11 @@
 from aiohttp import web
 
-from ...exception_handlers import HTTPExceptionHandler, HTTPValidationErrorRenderer
+from ...exception_handlers import (
+    HTTPExceptionHandler,
+    http_forbidden_error_renderer,
+    http_not_found_error_renderer,
+    http_validation_error_renderer,
+)
 from ..interfaces import HTTPMiddlewareHandler, HTTPMiddlewareInterface
 
 
@@ -11,7 +16,9 @@ class ExceptionHandlerMiddleware(HTTPMiddlewareInterface):
         """Initialize the middleware."""
         self.handler = handler
 
-        self.handler.render(HTTPValidationErrorRenderer)
+        self.handler.render(http_validation_error_renderer)
+        self.handler.render(http_not_found_error_renderer)
+        self.handler.render(http_forbidden_error_renderer)
 
     async def handle(
         self, request: web.Request, handler: HTTPMiddlewareHandler

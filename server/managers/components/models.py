@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from server.managers.settings import SettingSchema
+from server.managers.settings.models import SettingSchema
 from server.providers import ServiceProvider
 from server.utils.pydantic_fields import SlugStr
 

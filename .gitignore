@@ -13,3 +13,6 @@ node_modules
 # Local development
 database.db
 .vite
+
+# Storage
+server/storages/app/public

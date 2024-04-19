@@ -1,18 +1,21 @@
-from abc import ABC, abstractmethod
-from typing import Awaitable, Callable, TypeVar
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional, TypeVar, overload
+from uuid import UUID
 
-from server.eventbus import Event, EventType
-from server.managers.component import ComponentInterface
-from server.managers.settings import SettingSchema
-from server.utils.pydantic_fields import SlugStr
-from server.webserver import WebSocketMessageData
+from server.eventbus.event import Event
+from server.eventbus.interfaces import EventType
+from server.managers.settings.interfaces import DefaultType
+from server.managers.settings.models import SettingSchema
+from server.webserver.models import WebSocketMessageData
+
+if TYPE_CHECKING:
+    from server.managers.components.base import Component
 
 ClassType = TypeVar("ClassType", bound=object)
 ReturnType = TypeVar("ReturnType", bound=object)
-DefaultType = TypeVar("DefaultType", bound=object)
 
 
-class PhotoboothAppInterface(ABC):
+class PhotoboothAppInterface:
     """Interface for the photobooth app."""
 
     @abstractmethod
@@ -95,23 +98,9 @@ class PhotoboothAppInterface(ABC):
         """
 
     @abstractmethod
-    def resolve(self, interface: type) -> object:
-        """
-        Resolve an implementation for an interface.
-
-        Parameters
-        ----------
-        interface : type
-            The interface to resolve.
-
-        Returns
-        -------
-        object
-            The implementation for the interface.
-        """
-
-    @abstractmethod
-    def inject_constructor(self, cls: type[ClassType]) -> ClassType:
+    def inject_constructor(
+        self, cls: type[ClassType], named_deps: dict[str, object] = {}
+    ) -> ClassType:
         """
         Inject dependencies into a class.
 
@@ -119,6 +108,8 @@ class PhotoboothAppInterface(ABC):
         ----------
         cls : type
             The class to inject dependencies into.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -127,7 +118,9 @@ class PhotoboothAppInterface(ABC):
         """
 
     @abstractmethod
-    async def call_with_injection(self, func: Callable[..., ReturnType]) -> ReturnType:
+    async def call_with_injection(
+        self, func: Callable[..., ReturnType], named_deps: dict[str, object] = {}
+    ) -> ReturnType:
         """
         Call a function with dependency injection.
 
@@ -135,6 +128,8 @@ class PhotoboothAppInterface(ABC):
         ----------
         func : callable
             The function to call.
+        named_deps : dict[str, object]
+            Extra dependencies to inject based on the parameter name.
 
         Returns
         -------
@@ -143,7 +138,7 @@ class PhotoboothAppInterface(ABC):
         """
 
     @abstractmethod
-    def get_component(self, slug: str) -> ComponentInterface | None:
+    def get_component(self, slug: str) -> Optional["Component"]:
         """
         Get a component by its slug.
 
@@ -154,7 +149,7 @@ class PhotoboothAppInterface(ABC):
 
         Returns
         -------
-        ComponentInterface | None
+        Component | None
             The component with the given slug or None if not installed.
         """
 
@@ -176,7 +171,7 @@ class PhotoboothAppInterface(ABC):
 
     @abstractmethod
     async def add_setting_schema(
-        self, source: str, schema: SettingSchema, persist: bool = False
+        self, source: str, schema: SettingSchema, sync: bool = True
     ) -> None:
         """
         Add a new setting schema to the settings manager.
@@ -187,34 +182,81 @@ class PhotoboothAppInterface(ABC):
             The source of the setting, it can be "system" or component slug.
         schema : SettingSchema
             The schema of the setting.
-        persist : bool
-            Whether to persist the schema to the database, by default False.
+        sync : bool
+            Whether to sync the settings with the database, by default True.
         """
 
     @abstractmethod
     async def add_setting_schemas(
         self,
-        schemas: dict[SlugStr, list[SettingSchema]],
-        *,
-        persist: bool = False,
-        schema_only: bool = False,
+        source: str,
+        schemas: list[SettingSchema],
+        sync: bool = True,
     ) -> None:
         """
         Add a new settings schema to the settings manager.
 
         Parameters
         ----------
-        schemas : dict[SlugStr, list[SettingSchema]]
-            The schemas of the settings to add, keyed by their source.
-        persist : bool
-            Whether to persist the schema to the database, by default False.
-        schema_only : bool
-            Whether to only add the schema to the settings manager, by default False.
+        source : str
+            The source of the setting, it can be "system" or component slug.
+        schemas : list[SettingSchema]
+            The schemas of the settings.
+        sync : bool
+            Whether to sync the settings with the database, by default True.
         """
 
     @abstractmethod
+    def remove_setting_schema(self, source: str, key: str) -> None:
+        """
+        Remove a setting schema from the settings manager.
+
+        Parameters
+        ----------
+        source : str
+            The source of the setting, it can be "system" or component slug.
+        key : str
+            The key of the setting.
+        """
+
+    @abstractmethod
+    def remove_setting_schemas(self, source: str, keys: list[str]) -> None:
+        """
+        Remove setting schemas from the settings manager.
+
+        Parameters
+        ----------
+        source : str
+            The source of the setting, it can be "system" or component slug.
+        keys : list[str]
+            The keys of the settings.
+        """
+
+    @overload
+    @abstractmethod
     def get_setting_value(
-        self, source: str, key: str, default: DefaultType | None = None
+        self, *, uuid: str | UUID, default: DefaultType | None = None
+    ) -> object | DefaultType | None:
+        """
+        Get a setting value by its UUID.
+
+        Parameters
+        ----------
+        uuid : str | UUID
+            The UUID of the setting.
+        default : object | None
+            The default value to return if the setting does not exist.
+
+        Returns
+        -------
+        object | None
+            The setting value with the given UUID or the default value if it does not exist.
+        """
+
+    @overload
+    @abstractmethod
+    def get_setting_value(
+        self, *, source: str, key: str, default: DefaultType | None = None
     ) -> object | DefaultType | None:
         """
         Get a setting value by its source and key.
@@ -222,7 +264,7 @@ class PhotoboothAppInterface(ABC):
         Parameters
         ----------
         source : str
-            The source of the setting, it can be "system" or component slug.
+            The source of the setting.
         key : str
             The key of the setting.
         default : object | None
@@ -235,18 +277,32 @@ class PhotoboothAppInterface(ABC):
         """
 
     @abstractmethod
-    def set_setting_value(self, source: str, key: str, value: object) -> None:
+    def get_setting_value(
+        self,
+        *,
+        uuid: str | UUID | None = None,
+        source: str | None = None,
+        key: str | None = None,
+        default: DefaultType | None = None,
+    ) -> object | DefaultType | None:
         """
-        Set a setting value by its source and key.
+        Get a setting value by its UUID or source and key.
 
         Parameters
         ----------
-        source : str
-            The source of the setting, it can be "system" or component slug.
-        key : str
+        uuid : str | UUID | None
+            The UUID of the setting.
+        source : str | None
+            The source of the setting.
+        key : str | None
             The key of the setting.
-        value : object
-            The value of the setting.
+        default : object | None
+            The default value to return if the setting does not exist.
+
+        Returns
+        -------
+        object | None
+            The setting value with the given UUID or source and key or the default value if it does not exist.
         """
 
     @abstractmethod
