@@ -33,7 +33,7 @@ You need to follow these steps to setup the project:
 1. Clone the repository
 
    ```bash
-   git clone https://github.com/parisudha/photobooth.git
+   git clone https://github.com/sastrawanikadek/photobooth.git
    cd photobooth
    ```
 

@@ -11,7 +11,7 @@
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
-  "repository": "https://github.com/parisudha/photobooth.git",
+  "repository": "https://github.com/sastrawanikadek/photobooth.git",
   "author": "Parisudha Technology",
   "license": "MIT",
   "private": true,
